@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Build output (se genera en Docker)
+dist/
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Test files
+*.test.ts
+*.spec.ts
+__tests__/
+
+# Documentation
+*.md
+!README.md
+
+# Temp files
+temp/
+*.tmp
+screenshots/
+
+# Cache
+.cache/
+.npm/
+
+# Nixpacks (not needed for Docker)
+nixpacks.toml
+

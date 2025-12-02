@@ -175,20 +175,28 @@ export class HTMLGeneratorService {
             const captureWidth = 900;
             const captureHeight = 1354;  // 900 * 1.504
 
-            // Configuración para Railway/producción con Chromium
+            // Configuración de Puppeteer compatible con Docker/Render/Railway
             const launchOptions: any = {
-                headless: true,
+                headless: 'new', // Nuevo modo headless de Puppeteer
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
-                    '--disable-gpu'
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-extensions',
+                    '--disable-background-networking',
+                    '--disable-sync',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--single-process'
                 ]
             };
 
-            // Usar Chromium de Railway si está disponible
+            // Usar Chrome del contenedor si está disponible
             if (process.env.PUPPETEER_EXECUTABLE_PATH) {
                 launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+                this.logger.debug(`Usando Chrome: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
             }
 
             browser = await puppeteer.launch(launchOptions);
