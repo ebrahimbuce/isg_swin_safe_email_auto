@@ -13,7 +13,7 @@ export class BrowserService {
             
             // Configuración de Puppeteer compatible con Docker/Render/Railway
             const launchOptions: any = {
-                headless: 'new', // Nuevo modo headless de Puppeteer
+                headless: 'new',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -29,10 +29,24 @@ export class BrowserService {
                 ]
             };
 
-            // Usar Chrome del contenedor si está disponible
-            if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-                launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-                this.logger.debug(`Usando Chrome: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+            // Buscar Chrome en rutas conocidas
+            const chromePaths = [
+                process.env.PUPPETEER_EXECUTABLE_PATH,
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/google-chrome',
+                '/usr/bin/chromium-browser',
+                '/usr/bin/chromium'
+            ].filter(Boolean);
+
+            const fs = await import('fs');
+            for (const chromePath of chromePaths) {
+                try {
+                    if (fs.existsSync(chromePath as string)) {
+                        launchOptions.executablePath = chromePath;
+                        this.logger.info(`Usando Chrome: ${chromePath}`);
+                        break;
+                    }
+                } catch {}
             }
 
             this.browser = await puppeteer.launch(launchOptions);
