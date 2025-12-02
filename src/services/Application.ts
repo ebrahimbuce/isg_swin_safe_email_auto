@@ -23,8 +23,11 @@ export class Application {
         this.scheduler = new SchedulerService(this.logger);
     }
 
+    /**
+     * Inicia la aplicación CON scheduler interno (cron jobs)
+     */
     async bootstrap(): Promise<void> {
-        this.logger.info('Iniciando aplicación...');
+        this.logger.info('Iniciando aplicación con scheduler...');
         this.logger.info(`Entorno: ${this.config.nodeEnv}`);
         this.logger.info(`Puerto: ${this.config.port}`);
 
@@ -42,6 +45,17 @@ export class Application {
             this.logger.error('Error durante el bootstrap:', error);
             throw error;
         }
+    }
+
+    /**
+     * Inicia la aplicación SIN scheduler interno (para usar con cron-job.org)
+     */
+    async bootstrapWithoutScheduler(): Promise<void> {
+        this.logger.info('Iniciando aplicación (modo HTTP)...');
+        this.logger.info(`Entorno: ${this.config.nodeEnv}`);
+        this.logger.info(`Puerto: ${this.config.port}`);
+        this.logger.info(`Destinatarios: ${this.config.emailRecipients.join(', ')}`);
+        this.logger.info('Aplicación lista para recibir peticiones HTTP');
     }
 
     /**
@@ -81,6 +95,13 @@ export class Application {
             this.logger.error('Error en la ejecución:', error);
             throw error;
         }
+    }
+
+    /**
+     * Obtiene la configuración de la aplicación
+     */
+    getConfig(): IConfig {
+        return this.config;
     }
 
     /**

@@ -1,15 +1,16 @@
 # ══════════════════════════════════════════════════════════════
-# SWIM SAFE PUERTO RICO - Configuración para Render
-# Docker con Puppeteer/Chrome
+# SWIM SAFE PUERTO RICO - Web Service para Render
+# Usar con cron-job.org para disparar envíos
 # ══════════════════════════════════════════════════════════════
 
 services:
-  - type: worker
+  - type: web
     name: swim-safe-pr
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: oregon
-    plan: starter
+    plan: free
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -21,6 +22,9 @@ services:
         value: /usr/bin/google-chrome-stable
       - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
         value: "true"
+      # API Key para proteger endpoint /send
+      - key: API_KEY
+        generateValue: true  # Render genera un valor aleatorio
       # Variables secretas (configurar manualmente en Render)
       - key: GMAIL_USER
         sync: false
