@@ -1,0 +1,43 @@
+{
+  "name": "swim-safe-pr",
+  "version": "1.0.0",
+  "description": "Sistema automático de alertas de condiciones de playa para Puerto Rico",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:prod": "NODE_ENV=production node dist/main.js",
+    "lint": "tsc --noEmit",
+    "test:colors": "tsx src/__test__/test-color-detection.ts",
+    "test:email": "tsx src/__test__/test-email.ts --",
+    "test:cron": "tsx src/__test__/test-cron.ts",
+    "test:flow": "tsx src/__test__/test-full-flow.ts --",
+    "send:now": "tsx -e \"import 'dotenv/config'; import {ConfigFactory} from './src/config/ConfigFactory.js'; import {Application} from './src/services/Application.js'; const app = new Application(ConfigFactory.fromEnv()); app.sendForecastReport(process.env.EMAIL_RECIPIENTS?.split(',') || []).then(() => process.exit(0));\""
+  },
+  "keywords": [
+    "nodejs",
+    "typescript",
+    "oop",
+    "config"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "node-cron": "^4.2.1",
+    "node-vibrant": "^4.0.3",
+    "nodemailer": "^7.0.11",
+    "puppeteer": "^24.31.0",
+    "sharp": "^0.34.5"
+  }
+}
