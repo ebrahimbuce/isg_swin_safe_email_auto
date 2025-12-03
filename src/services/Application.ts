@@ -96,7 +96,7 @@ export class Application {
             throw error;
         }
     }
-
+    
     /**
      * Obtiene la configuración de la aplicación
      */

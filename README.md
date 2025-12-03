@@ -2,73 +2,132 @@
 
 Sistema automático de alertas de condiciones de playa para Puerto Rico. Descarga imágenes del pronóstico del NWS, detecta niveles de alerta por color, y envía reportes por email.
 
-## ⏰ Horarios de envío
+## ⏰ Horarios de envío automático
 
 | Hora Puerto Rico (AST) | Descripción |
 |------------------------|-------------|
 | **7:02 AM** | Reporte de la mañana |
 | **12:02 PM** | Reporte del mediodía |
 
-*Los envíos son disparados por cron-job.org*
+*Los envíos son manejados por cron jobs internos (node-cron)*
 
 ---
 
-## 🚀 Deploy en Render + cron-job.org
+## 🖥️ Deploy en AWS EC2 con PM2
 
-### Paso 1: Deploy en Render
+### Paso 1: Crear instancia EC2
 
-1. **Sube a GitHub:**
+1. **En AWS Console** → EC2 → Launch Instance
+2. **AMI:** Amazon Linux 2023 o Ubuntu 22.04
+3. **Tipo:** t2.micro (gratis) o t2.small
+4. **Security Group:** Abrir puerto 22 (SSH)
+5. **Key Pair:** Crear o usar existente (.pem)
+
+### Paso 2: Configurar el servidor
+
 ```bash
-git add .
-git commit -m "Deploy to Render"
-git push
+# Conectar al servidor
+ssh -i tu-llave.pem ec2-user@TU_IP_PUBLICA
+
+# Copiar y ejecutar script de setup
 ```
 
-2. **En Render** ([render.com](https://render.com)):
-   - **New** → **Web Service**
-   - Selecciona **Docker**
-   - Conecta tu repositorio
+O ejecutar manualmente:
 
-3. **Variables de entorno** (en Render Dashboard):
+```bash
+# Actualizar sistema
+sudo yum update -y  # Amazon Linux
+# o
+sudo apt update && sudo apt upgrade -y  # Ubuntu
+
+# Instalar Node.js 20
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo yum install -y nodejs
+
+# Instalar dependencias de Chrome
+sudo yum install -y alsa-lib atk cups-libs gtk3 libXcomposite libXcursor \
+    libXdamage libXext libXi libXrandr libXScrnSaver libXtst pango \
+    xorg-x11-fonts-100dpi xorg-x11-fonts-75dpi xorg-x11-utils nss libdrm libgbm
+
+# Instalar Google Chrome
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+sudo yum install -y ./google-chrome-stable_current_x86_64.rpm
+rm google-chrome-stable_current_x86_64.rpm
+
+# Instalar PM2
+sudo npm install -g pm2
+
+# Crear directorio
+sudo mkdir -p /var/www/swim-safe-pr
+sudo chown -R $USER:$USER /var/www/swim-safe-pr
 ```
+
+### Paso 3: Deploy de la aplicación
+
+```bash
+# En tu máquina local - compilar
+npm run build
+
+# Subir archivos al servidor
+scp -i tu-llave.pem -r dist/ public/ package*.json ecosystem.config.cjs \
+    ec2-user@TU_IP:/var/www/swim-safe-pr/
+
+# En el servidor
+ssh -i tu-llave.pem ec2-user@TU_IP
+cd /var/www/swim-safe-pr
+
+# Crear directorio de logs
+mkdir -p logs
+
+# Instalar dependencias
+npm install --production
+
+# Crear archivo .env
+nano .env
+```
+
+### Paso 4: Configurar .env
+
+```bash
 NODE_ENV=production
 LOG_LEVEL=info
-API_KEY=tu-api-key-secreta
+
+# Gmail
 GMAIL_USER=tu-email@gmail.com
 GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+
+# Destinatarios (separados por coma)
 EMAIL_RECIPIENTS=email1@gmail.com,email2@gmail.com
+
+# Chrome
 PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ```
 
-4. **Anota tu URL de Render:** `https://swim-safe-pr.onrender.com`
+### Paso 5: Iniciar con PM2
 
----
+```bash
+# Iniciar aplicación
+pm2 start ecosystem.config.cjs
 
-### Paso 2: Configurar cron-job.org
+# Guardar configuración
+pm2 save
 
-1. Ve a [cron-job.org](https://cron-job.org) y crea cuenta gratuita
+# Configurar inicio automático al reiniciar servidor
+pm2 startup
+# Ejecutar el comando que muestra PM2
+```
 
-2. **Crear Cron Job #1 (Mañana):**
-   - **Title:** Swim Safe PR - Morning
-   - **URL:** `https://tu-app.onrender.com/send?key=TU_API_KEY`
-   - **Schedule:** Custom → `2 7 * * *`
-   - **Timezone:** America/Puerto_Rico
+### Comandos útiles PM2
 
-3. **Crear Cron Job #2 (Mediodía):**
-   - **Title:** Swim Safe PR - Noon
-   - **URL:** `https://tu-app.onrender.com/send?key=TU_API_KEY`
-   - **Schedule:** Custom → `2 12 * * *`
-   - **Timezone:** America/Puerto_Rico
-
----
-
-## 📡 Endpoints HTTP
-
-| Endpoint | Descripción |
-|----------|-------------|
-| `GET /` | Health check |
-| `GET /health` | Health check con info |
-| `GET /send?key=API_KEY` | Dispara envío de email |
+```bash
+pm2 status              # Ver estado
+pm2 logs swim-safe-pr   # Ver logs en tiempo real
+pm2 logs swim-safe-pr --lines 100  # Últimas 100 líneas
+pm2 restart swim-safe-pr # Reiniciar
+pm2 stop swim-safe-pr   # Detener
+pm2 delete swim-safe-pr # Eliminar
+pm2 monit               # Monitor interactivo
+```
 
 ---
 
@@ -78,31 +137,16 @@ PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 # Instalar dependencias
 npm install
 
-# Configurar variables (crear archivo .env)
-NODE_ENV=development
-LOG_LEVEL=info
-API_KEY=test-key
-GMAIL_USER=tu-email@gmail.com
-GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
-EMAIL_RECIPIENTS=tu-email@gmail.com
+# Crear archivo .env
+cp scripts/env.example .env
+# Editar .env con tus credenciales
 
-# Desarrollo
+# Desarrollo (con hot-reload)
 npm run dev
 
-# Probar envío manual
-curl "http://localhost:3000/send?key=test-key"
-```
-
----
-
-## 🚀 Scripts disponibles
-
-```bash
-npm run dev          # Desarrollo con hot-reload
-npm run build        # Compilar TypeScript
-npm run start        # Iniciar servidor HTTP
-npm run test:flow    # Test del flujo completo
-npm run test:email   # Test de envío de email
+# Producción
+npm run build
+npm run start
 ```
 
 ---
@@ -123,12 +167,26 @@ npm run test:email   # Test de envío de email
 |----------|-----------|-------------|
 | `NODE_ENV` | No | `development` o `production` |
 | `LOG_LEVEL` | No | `debug`, `info`, `warn`, `error` |
-| `PORT` | No | Puerto HTTP (default: 3000) |
-| `API_KEY` | ✅ | Clave para proteger `/send` |
 | `GMAIL_USER` | ✅ | Email de Gmail |
 | `GMAIL_APP_PASSWORD` | ✅ | App Password de Gmail |
 | `EMAIL_RECIPIENTS` | ✅ | Emails separados por coma |
-| `PUPPETEER_EXECUTABLE_PATH` | Docker | Ruta a Chrome |
+| `PUPPETEER_EXECUTABLE_PATH` | Servidor | Ruta a Chrome |
+
+---
+
+## 📁 Estructura del proyecto
+
+```
+├── src/                    # Código fuente TypeScript
+├── dist/                   # Código compilado
+├── public/                 # HTML, CSS, imágenes, banderas
+├── scripts/
+│   ├── setup-ec2.sh       # Setup para EC2
+│   ├── deploy-ec2.sh      # Deploy automático a EC2
+│   └── env.example        # Ejemplo de .env
+├── ecosystem.config.cjs   # Configuración PM2
+└── package.json
+```
 
 ---
 
@@ -140,20 +198,15 @@ npm run test:email   # Test de envío de email
 
 ---
 
-## 📁 Estructura del proyecto
+## 🔄 Actualizar aplicación
 
-```
-├── src/
-│   ├── main.ts                 # Servidor HTTP + endpoints
-│   ├── config/                 # Configuración
-│   └── services/
-│       ├── Application.ts      # Aplicación principal
-│       ├── ForecastService.ts  # Descarga y procesa forecast
-│       ├── EmailService.ts     # Envío de emails
-│       └── HTMLGeneratorService.ts # Genera imagen
-├── public/
-│   ├── index.html             # Template HTML
-│   └── flags/                 # Banderas de alerta
-├── Dockerfile                 # Docker con Puppeteer
-└── render.yaml                # Config de Render
+```bash
+# En local
+npm run build
+
+# Subir nuevos archivos
+scp -i tu-llave.pem -r dist/ ec2-user@TU_IP:/var/www/swim-safe-pr/
+
+# En servidor - reiniciar
+ssh -i tu-llave.pem ec2-user@TU_IP "pm2 restart swim-safe-pr"
 ```
