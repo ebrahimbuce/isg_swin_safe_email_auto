@@ -154,8 +154,8 @@ export class HTMLGeneratorService {
      */
     async exportToImage(
         outputImagePath?: string,
-        finalWidth: number = 600,
-        finalHeight: number = 902,
+        finalWidth: number = 1500,
+        finalHeight: number = 2257,
         format: 'png' | 'jpeg' = 'png'
     ): Promise<string> {
         let browser = null;
@@ -171,9 +171,9 @@ export class HTMLGeneratorService {
             const tempPath = path.join(__dirname, '../../public/final/temp_capture.png');
             const htmlPath = `file://${this.outputPath}`;
 
-            // Viewport optimizado para mejor calidad (1100x1654 con deviceScaleFactor 2 = 2200x3308 efectivos)
-            const captureWidth = 1100;
-            const captureHeight = 1654;  // 1100 * 1.504
+            // Viewport ajustado al contenido del HTML (luego se hace upscaling con Sharp)
+            const captureWidth = 900;
+            const captureHeight = 1354;
 
             // Configuración de Puppeteer optimizada para servidores con poca RAM
             const launchOptions: any = {
@@ -257,36 +257,25 @@ export class HTMLGeneratorService {
             await browser.close();
             browser = null;
 
-            // Redimensionar a las dimensiones finales con procesamiento de alta calidad
-            this.logger.info(`Redimensionando a ${finalWidth}x${finalHeight} con optimización de calidad PRO...`);
+            // Redimensionar con upscaling de alta calidad
+            this.logger.info(`Upscaling a ${finalWidth}x${finalHeight} con alta calidad...`);
             
             const sharpInstance = sharp(tempPath)
-                // Primero: reducir ruido suavemente antes de redimensionar
-                .median(1)
-                // Redimensionar con el mejor algoritmo
+                // Upscaling con el mejor algoritmo (lanczos3 es ideal para ampliar)
                 .resize(finalWidth, finalHeight, {
                     fit: 'fill',
                     kernel: 'lanczos3',
                     withoutEnlargement: false
                 })
-                // Mejora de nitidez más agresiva pero controlada
+                // Sharpening después del upscaling para recuperar nitidez
                 .sharpen({
-                    sigma: 1.0,      // Más sharpening para detalles nítidos
-                    m1: 0.8,         // Flat areas - menos agresivo
-                    m2: 2.5,         // Jagged areas - más definición en bordes
-                    x1: 2.0,         // Threshold
-                    y2: 12.0,        // Maximum brightening
-                    y3: 25.0         // Maximum darkening
-                })
-                // Mejorar colores y contraste
-                .modulate({
-                    brightness: 1.03,  // Un poco más brillante
-                    saturation: 1.08   // Colores más vivos y ricos
-                })
-                // Ajustar niveles de contraste (gamma)
-                .gamma(1.1)  // Ligeramente más contraste en medios tonos
-                // Normalizar para mejor rango dinámico
-                .normalize();
+                    sigma: 1.2,        // Más sharpening para compensar upscaling
+                    m1: 0.8,
+                    m2: 2.0,
+                    x1: 2.0,
+                    y2: 10.0,
+                    y3: 20.0
+                });
 
             // Aplicar formato con configuración óptima
             if (format === 'png') {
