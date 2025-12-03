@@ -171,11 +171,11 @@ export class HTMLGeneratorService {
             const tempPath = path.join(__dirname, '../../public/final/temp_capture.png');
             const htmlPath = `file://${this.outputPath}`;
 
-            // Viewport proporcional a 500x752 (ratio 1:1.504) pero más grande para mejor calidad
-            const captureWidth = 1200;
-            const captureHeight = 1805;  // 1200 * 1.504
+            // Viewport moderado para balance calidad/memoria (1000x1504 con deviceScaleFactor 2 = 2000x3008 efectivos)
+            const captureWidth = 1000;
+            const captureHeight = 1504;  // 1000 * 1.504
 
-            // Configuración de Puppeteer compatible con Docker/Render/Railway
+            // Configuración de Puppeteer optimizada para servidores con poca RAM
             const launchOptions: any = {
                 headless: 'new',
                 args: [
@@ -187,9 +187,16 @@ export class HTMLGeneratorService {
                     '--disable-extensions',
                     '--disable-background-networking',
                     '--disable-sync',
+                    '--disable-translate',
+                    '--disable-default-apps',
                     '--no-first-run',
                     '--no-zygote',
-                    '--single-process'
+                    // Optimizaciones de memoria
+                    '--js-flags=--max-old-space-size=256',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-canvas-aa',
+                    '--disable-2d-canvas-clip-aa',
+                    '--disable-gl-drawing-for-tests'
                 ]
             };
 
@@ -220,7 +227,7 @@ export class HTMLGeneratorService {
             await page.setViewport({
                 width: captureWidth,
                 height: captureHeight,
-                deviceScaleFactor: 3  // Máxima resolución para mejor calidad al redimensionar
+                deviceScaleFactor: 2  // Balance entre calidad y uso de memoria
             });
 
             await page.goto(htmlPath, { 
@@ -250,17 +257,48 @@ export class HTMLGeneratorService {
             await browser.close();
             browser = null;
 
-            // Redimensionar a las dimensiones finales (500x752)
-            this.logger.info(`Redimensionando a ${finalWidth}x${finalHeight}...`);
+            // Redimensionar a las dimensiones finales con procesamiento de alta calidad
+            this.logger.info(`Redimensionando a ${finalWidth}x${finalHeight} con optimización de calidad...`);
             
-            await sharp(tempPath)
+            const sharpInstance = sharp(tempPath)
                 .resize(finalWidth, finalHeight, {
-                    fit: 'fill',  // Estirar para llenar exactamente las dimensiones
-                    kernel: 'lanczos3'  // Mejor algoritmo de interpolación para calidad
+                    fit: 'fill',
+                    kernel: 'lanczos3',  // Mejor algoritmo de interpolación
+                    withoutEnlargement: false
                 })
-                .sharpen({ sigma: 0.5 })  // Ligero sharpening para más nitidez
-                .toFormat(format, { quality: 100 })  // Máxima calidad
-                .toFile(finalOutputPath);
+                // Mejora de nitidez adaptativa
+                .sharpen({
+                    sigma: 0.8,      // Un poco más de sharpening
+                    m1: 1.0,         // Flat areas
+                    m2: 2.0,         // Jagged areas  
+                    x1: 2.0,         // Threshold
+                    y2: 10.0,        // Maximum brightening
+                    y3: 20.0         // Maximum darkening
+                })
+                // Mejorar contraste ligeramente
+                .modulate({
+                    brightness: 1.02,  // Ligeramente más brillante
+                    saturation: 1.05   // Colores un poco más vivos
+                });
+
+            // Aplicar formato con configuración óptima
+            if (format === 'png') {
+                await sharpInstance
+                    .png({ 
+                        quality: 100,
+                        compressionLevel: 6,  // Balance compresión/velocidad
+                        adaptiveFiltering: true
+                    })
+                    .toFile(finalOutputPath);
+            } else {
+                await sharpInstance
+                    .jpeg({ 
+                        quality: 95,
+                        chromaSubsampling: '4:4:4',  // Sin pérdida de color
+                        mozjpeg: true  // Mejor compresión
+                    })
+                    .toFile(finalOutputPath);
+            }
 
             // Eliminar archivo temporal
             await fs.unlink(tempPath);

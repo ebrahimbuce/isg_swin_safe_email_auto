@@ -11,7 +11,7 @@ export class BrowserService {
         try {
             this.logger.info('Inicializando navegador...');
             
-            // Configuración de Puppeteer compatible con Docker/Render/Railway
+            // Configuración de Puppeteer optimizada para servidores con poca RAM
             const launchOptions: any = {
                 headless: 'new',
                 args: [
@@ -23,9 +23,16 @@ export class BrowserService {
                     '--disable-extensions',
                     '--disable-background-networking',
                     '--disable-sync',
+                    '--disable-translate',
+                    '--disable-default-apps',
                     '--no-first-run',
                     '--no-zygote',
-                    '--single-process'
+                    // Optimizaciones de memoria
+                    '--js-flags=--max-old-space-size=256',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-canvas-aa',
+                    '--disable-2d-canvas-clip-aa',
+                    '--disable-gl-drawing-for-tests'
                 ]
             };
 
