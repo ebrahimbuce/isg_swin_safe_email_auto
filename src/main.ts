@@ -31,8 +31,14 @@ async function main() {
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('✅ Aplicación en ejecución con cron jobs internos');
     console.log('📅 Emails programados para (hora Puerto Rico - AST):');
-    console.log('   • 7:02 AM');
-    console.log('   • 12:02 PM');
+    console.log('');
+    console.log('   📬 PREVIEW (ebrahimbuce@gmail.com):');
+    console.log('      • 6:47 AM  (15 min antes)');
+    console.log('      • 11:47 AM (15 min antes)');
+    console.log('');
+    console.log('   📧 ENVÍO PRINCIPAL (todos los destinatarios):');
+    console.log('      • 7:02 AM');
+    console.log('      • 12:02 PM');
     console.log('\n⏳ Esperando próximo envío programado...');
     console.log('   (La aplicación debe estar corriendo 24/7 con PM2)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');

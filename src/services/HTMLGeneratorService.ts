@@ -171,9 +171,9 @@ export class HTMLGeneratorService {
             const tempPath = path.join(__dirname, '../../public/final/temp_capture.png');
             const htmlPath = `file://${this.outputPath}`;
 
-            // Viewport proporcional a 500x752 (ratio 1:1.504) pero más grande
-            const captureWidth = 900;
-            const captureHeight = 1354;  // 900 * 1.504
+            // Viewport proporcional a 500x752 (ratio 1:1.504) pero más grande para mejor calidad
+            const captureWidth = 1200;
+            const captureHeight = 1805;  // 1200 * 1.504
 
             // Configuración de Puppeteer compatible con Docker/Render/Railway
             const launchOptions: any = {
@@ -220,7 +220,7 @@ export class HTMLGeneratorService {
             await page.setViewport({
                 width: captureWidth,
                 height: captureHeight,
-                deviceScaleFactor: 2  // Alta resolución para mejor calidad al redimensionar
+                deviceScaleFactor: 3  // Máxima resolución para mejor calidad al redimensionar
             });
 
             await page.goto(htmlPath, { 
@@ -255,9 +255,11 @@ export class HTMLGeneratorService {
             
             await sharp(tempPath)
                 .resize(finalWidth, finalHeight, {
-                    fit: 'fill'  // Estirar para llenar exactamente las dimensiones
+                    fit: 'fill',  // Estirar para llenar exactamente las dimensiones
+                    kernel: 'lanczos3'  // Mejor algoritmo de interpolación para calidad
                 })
-                .toFormat(format, { quality: 95 })
+                .sharpen({ sigma: 0.5 })  // Ligero sharpening para más nitidez
+                .toFormat(format, { quality: 100 })  // Máxima calidad
                 .toFile(finalOutputPath);
 
             // Eliminar archivo temporal

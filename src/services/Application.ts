@@ -58,13 +58,18 @@ export class Application {
         this.logger.info('Aplicación lista para recibir peticiones HTTP');
     }
 
+    // Email para recibir preview 15 minutos antes
+    private readonly PREVIEW_EMAIL = 'ebrahimbuce@gmail.com';
+
     /**
-     * Inicia los envíos programados de email a las 7:02 AM y 12:03 PM PST
+     * Inicia los envíos programados de email a las 7:02 AM y 12:02 PM AST
+     * También envía previews 15 minutos antes al email configurado
      */
     startScheduledEmails(): void {
         this.logger.info('📅 Configurando envíos programados de email...');
         
-        this.scheduler.scheduleForecastEmails(async () => {
+        // Función para envío principal (todos los destinatarios)
+        const sendMainForecast = async () => {
             try {
                 this.logger.info('🚀 Iniciando envío programado de forecast...');
                 await this.emailService.sendForecastReport(this.config.emailRecipients);
@@ -72,7 +77,20 @@ export class Application {
             } catch (error) {
                 this.logger.error('❌ Error en envío programado:', error);
             }
-        });
+        };
+
+        // Función para envío preview (solo al email configurado)
+        const sendPreviewForecast = async () => {
+            try {
+                this.logger.info(`📬 Iniciando envío PREVIEW a ${this.PREVIEW_EMAIL}...`);
+                await this.emailService.sendForecastReport(this.PREVIEW_EMAIL);
+                this.logger.info('✅ Envío preview completado');
+            } catch (error) {
+                this.logger.error('❌ Error en envío preview:', error);
+            }
+        };
+
+        this.scheduler.scheduleForecastEmails(sendMainForecast, sendPreviewForecast);
     }
 
     async shutdown(): Promise<void> {

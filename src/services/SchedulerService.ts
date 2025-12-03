@@ -60,12 +60,37 @@ export class SchedulerService {
     }
 
     /**
-     * Programa el envío de forecast a las 7:02am y 12:03pm hora de Puerto Rico (AST)
-     * @param sendForecast - Función que envía el forecast
+     * Programa el envío de forecast a las 7:02am y 12:02pm hora de Puerto Rico (AST)
+     * También programa envíos previos 15 minutos antes a un email específico
+     * @param sendForecast - Función que envía el forecast a todos los destinatarios
+     * @param sendPreviewForecast - Función que envía el forecast al email de preview (opcional)
      */
-    scheduleForecastEmails(sendForecast: () => Promise<void>): void {
+    scheduleForecastEmails(
+        sendForecast: () => Promise<void>, 
+        sendPreviewForecast?: () => Promise<void>
+    ): void {
         const timezone = 'America/Puerto_Rico'; // AST = UTC-4 (sin horario de verano)
 
+        // ====== ENVÍOS PREVIOS (15 minutos antes) ======
+        if (sendPreviewForecast) {
+            // 6:47 AM Puerto Rico (15 min antes de 7:02 AM)
+            this.schedule({
+                name: 'forecast-morning-preview',
+                cronExpression: '47 6 * * *',  // Minuto 47, Hora 6, todos los días
+                timezone: timezone,
+                task: sendPreviewForecast
+            });
+
+            // 11:47 AM Puerto Rico (15 min antes de 12:02 PM)
+            this.schedule({
+                name: 'forecast-noon-preview',
+                cronExpression: '47 11 * * *', // Minuto 47, Hora 11, todos los días
+                timezone: timezone,
+                task: sendPreviewForecast
+            });
+        }
+
+        // ====== ENVÍOS PRINCIPALES ======
         // 7:02 AM Puerto Rico
         this.schedule({
             name: 'forecast-morning',
@@ -152,8 +177,21 @@ export class SchedulerService {
         this.logger.info('📊 Información de horarios:');
         this.logger.info(`   Hora actual (Puerto Rico): ${puertoRicoTime}`);
         this.logger.info(`   Próximas ejecuciones:`);
-        this.logger.info(`   - forecast-morning: 7:02 AM AST`);
-        this.logger.info(`   - forecast-noon: 12:02 PM AST`);
+        
+        // Mostrar solo las tareas activas
+        const activeTasks = this.listTasks();
+        if (activeTasks.includes('forecast-morning-preview')) {
+            this.logger.info(`   - forecast-morning-preview: 6:47 AM AST (preview)`);
+        }
+        if (activeTasks.includes('forecast-morning')) {
+            this.logger.info(`   - forecast-morning: 7:02 AM AST`);
+        }
+        if (activeTasks.includes('forecast-noon-preview')) {
+            this.logger.info(`   - forecast-noon-preview: 11:47 AM AST (preview)`);
+        }
+        if (activeTasks.includes('forecast-noon')) {
+            this.logger.info(`   - forecast-noon: 12:02 PM AST`);
+        }
     }
 }
 
