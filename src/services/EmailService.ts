@@ -1,6 +1,6 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import { Logger } from './Logger.js';
-import { ForecastService } from './ForecastService.js';
+import { ForecastService, ForecastResult } from './ForecastService.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -153,13 +153,14 @@ export class EmailService {
     /**
      * Envía el reporte del forecast con la imagen y detecta automáticamente el nivel de alerta
      * @param to - El destinatario del email
+     * @param forecastResult - Resultado del forecast opcional (para reutilizar si ya se obtuvo)
      * @returns true si el reporte se envió correctamente, false en caso contrario  
      */
-    async sendForecastReport(to: string | string[]): Promise<boolean> {
-        // Obtener el resultado del forecast (incluye alertStatus y outputImagePath)
-        const forecastResult = await this.forecastService.getForecast();
-        const alertLevel = forecastResult.alertStatus.level as 'red' | 'yellow' | 'white';
-        const imagePath = forecastResult.outputImagePath;
+    async sendForecastReport(to: string | string[], forecastResult?: ForecastResult): Promise<boolean> {
+        // Obtener el resultado del forecast si no se proporcionó uno
+        const result = forecastResult || await this.forecastService.getForecast();
+        const alertLevel = result.alertStatus.level as 'red' | 'yellow' | 'white';
+        const imagePath = result.outputImagePath;
 
         const alertMessages = {
             red: {

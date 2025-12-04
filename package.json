@@ -16,8 +16,7 @@
     "test:memory": "tsx src/__test__/test-memory-optimizations.ts",
     "test:email": "tsx src/__test__/test-email.ts --",
     "test:cron": "tsx src/__test__/test-cron.ts",
-    "test:flow": "tsx src/__test__/test-full-flow.ts --",
-    "send:now": "tsx -e \"import 'dotenv/config'; import {ConfigFactory} from './src/config/ConfigFactory.js'; import {Application} from './src/services/Application.js'; const app = new Application(ConfigFactory.fromEnv()); app.sendForecastReport(process.env.EMAIL_RECIPIENTS?.split(',') || []).then(() => process.exit(0));\""
+    "test:flow": "tsx src/__test__/test-full-flow.ts --"
   },
   "keywords": [
     "nodejs",

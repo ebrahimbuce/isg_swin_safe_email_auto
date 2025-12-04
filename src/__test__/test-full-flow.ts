@@ -86,10 +86,8 @@ async function testFullFlow() {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('📨 PASO 4: Enviando email del forecast...\n');
         
-        // Nota: sendForecastReport ya llama a getForecast internamente,
-        // pero como ya lo ejecutamos, podríamos optimizar esto.
-        // Por ahora, dejamos que se ejecute de nuevo para demostrar el flujo completo.
-        const emailSent = await emailService.sendForecastReport(recipients);
+        // Reutilizar el resultado del forecast ya obtenido en el PASO 2
+        const emailSent = await emailService.sendForecastReport(recipients, forecastResult);
 
         if (emailSent) {
             console.log(`\n   ✅ Email enviado exitosamente a: ${recipients.join(', ')}`);

@@ -53,13 +53,17 @@ async function testMemoryOptimizations() {
         const memoryBeforeForecast = getMemoryUsage();
         console.log(`   Memoria antes: ${formatBytes(memoryBeforeForecast.heapUsed)}`);
 
-        // Ejecutar el flujo completo
+        // Ejecutar el flujo completo con medición de tiempo
+        const startTime = Date.now();
         const forecastResult = await forecastService.getForecast();
+        const endTime = Date.now();
+        const totalTime = ((endTime - startTime) / 1000).toFixed(2);
 
         const memoryAfterForecast = getMemoryUsage();
         console.log(`   Memoria después: ${formatBytes(memoryAfterForecast.heapUsed)}`);
         const memoryUsed = memoryAfterForecast.heapUsed - memoryBeforeForecast.heapUsed;
         console.log(`   Memoria usada: ${formatBytes(memoryUsed)}`);
+        console.log(`   ⏱️  Tiempo total: ${totalTime} segundos`);
 
         console.log('\n✅ Forecast procesado exitosamente:');
         console.log(`   🔴 Rojo detectado: ${forecastResult.colorDetection.hasRed ? 'SÍ' : 'NO'} (${forecastResult.colorDetection.redPercentage}%)`);

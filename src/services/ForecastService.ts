@@ -60,14 +60,14 @@ export class ForecastService {
             // NOTA: Mantenemos resolución completa para precisión en detección
             const colorDetection = await this.detectColorsMinimal(processedImage);
             
-            // 5. Guardar la imagen procesada
-            await this.saveImage(processedImage);
+            // 5. Guardar imagen y actualizar HTML en paralelo (optimización de tiempo)
+            const [alertStatus] = await Promise.all([
+                this.htmlGenerator.updateHTML(colorDetection),
+                this.saveImage(processedImage)
+            ]);
             
             // 6. Liberar imagen procesada después de guardar (libera memoria)
             processedImage = null;
-            
-            // 7. Actualizar el HTML con la bandera correcta
-            const alertStatus = await this.htmlGenerator.updateHTML(colorDetection);
             
             // 8. Exportar HTML a imagen HD (1500x2500px)
             const outputImagePath = await this.htmlGenerator.exportToImage(

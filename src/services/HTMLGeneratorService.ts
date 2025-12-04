@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import puppeteer, { Page } from 'puppeteer';
 import sharp from 'sharp';
+import { PuppeteerConfig } from './PuppeteerConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -175,60 +176,30 @@ export class HTMLGeneratorService {
             const captureWidth = 900;
             const captureHeight = 1500;
 
-            // Configuración de Puppeteer optimizada para servidores con poca RAM
-            const launchOptions: any = {
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--disable-software-rasterizer',
-                    '--disable-extensions',
-                    '--disable-background-networking',
-                    '--disable-sync',
-                    '--disable-translate',
-                    '--disable-default-apps',
-                    '--no-first-run',
-                    '--no-zygote',
-                    // Optimizaciones de memoria mejoradas
-                    '--js-flags=--max-old-space-size=128',
-                    '--disable-accelerated-2d-canvas',
-                    '--disable-canvas-aa',
-                    '--disable-2d-canvas-clip-aa',
-                    '--disable-gl-drawing-for-tests',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection',
-                    '--memory-pressure-off'
-                ]
-            };
-
+            // Obtener configuración compartida de Puppeteer
+            const launchOptions = PuppeteerConfig.getLaunchOptions();
+            
             // Buscar Chrome en rutas conocidas
-            const chromePaths = [
-                process.env.PUPPETEER_EXECUTABLE_PATH,
-                '/usr/bin/google-chrome-stable',
-                '/usr/bin/google-chrome',
-                '/usr/bin/chromium-browser',
-                '/usr/bin/chromium'
-            ].filter(Boolean);
-
-            for (const chromePath of chromePaths) {
-                try {
-                    const fs = await import('fs');
-                    if (fs.existsSync(chromePath as string)) {
-                        launchOptions.executablePath = chromePath;
-                        this.logger.info(`Usando Chrome: ${chromePath}`);
-                        break;
-                    }
-                } catch {}
+            await PuppeteerConfig.findChromeExecutable(launchOptions);
+            if (launchOptions.executablePath) {
+                this.logger.info(`Usando Chrome: ${launchOptions.executablePath}`);
             }
 
-            browser = await puppeteer.launch(launchOptions);
+            // Lanzar Chrome con timeout y mejor manejo de errores
+            this.logger.info('Iniciando Chrome (esto puede tomar unos segundos)...');
+            try {
+                browser = await PuppeteerConfig.launchWithTimeout(launchOptions);
+                this.logger.info('Chrome iniciado correctamente');
+            } catch (error) {
+                this.logger.error('Error al iniciar Chrome:', error);
+                throw new Error(`No se pudo iniciar Chrome: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+            }
 
             let page: Page | null = await browser.newPage();
+            
+            if (!page) {
+                throw new Error('No se pudo crear la página en Chrome');
+            }
 
             await page.setViewport({
                 width: captureWidth,
@@ -237,12 +208,13 @@ export class HTMLGeneratorService {
             });
 
             await page.goto(htmlPath, { 
-                waitUntil: 'networkidle0',
+                waitUntil: 'domcontentloaded',  // Espera a que todas las imágenes se carguen (más rápido que networkidle0)
                 timeout: 30000
             });
 
             await page.waitForSelector('.map-workflow', { timeout: 5000 });
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Esperar un poco más para asegurar que el mapa se renderice completamente
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar el elemento principal
             const element = await page.$('.bg-gradient-primary');

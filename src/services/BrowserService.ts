@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { Logger } from './Logger.js';
+import { PuppeteerConfig } from './PuppeteerConfig.js';
 
 export class BrowserService {
     private browser: Browser | null = null;
@@ -11,61 +12,27 @@ export class BrowserService {
         try {
             this.logger.info('Inicializando navegador...');
             
-            // Configuración de Puppeteer optimizada para servidores con poca RAM
-            const launchOptions: any = {
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--disable-software-rasterizer',
-                    '--disable-extensions',
-                    '--disable-background-networking',
-                    '--disable-sync',
-                    '--disable-translate',
-                    '--disable-default-apps',
-                    '--no-first-run',
-                    '--no-zygote',
-                    // Optimizaciones de memoria mejoradas
-                    '--js-flags=--max-old-space-size=128',
-                    '--disable-accelerated-2d-canvas',
-                    '--disable-canvas-aa',
-                    '--disable-2d-canvas-clip-aa',
-                    '--disable-gl-drawing-for-tests',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection',
-                    '--memory-pressure-off'
-                ]
-            };
-
+            // Obtener configuración compartida de Puppeteer
+            const launchOptions = PuppeteerConfig.getLaunchOptions();
+            
             // Buscar Chrome en rutas conocidas
-            const chromePaths = [
-                process.env.PUPPETEER_EXECUTABLE_PATH,
-                '/usr/bin/google-chrome-stable',
-                '/usr/bin/google-chrome',
-                '/usr/bin/chromium-browser',
-                '/usr/bin/chromium'
-            ].filter(Boolean);
-
-            const fs = await import('fs');
-            for (const chromePath of chromePaths) {
-                try {
-                    if (fs.existsSync(chromePath as string)) {
-                        launchOptions.executablePath = chromePath;
-                        this.logger.info(`Usando Chrome: ${chromePath}`);
-                        break;
-                    }
-                } catch {}
+            await PuppeteerConfig.findChromeExecutable(launchOptions);
+            if (launchOptions.executablePath) {
+                this.logger.info(`Usando Chrome: ${launchOptions.executablePath}`);
             }
 
-            this.browser = await puppeteer.launch(launchOptions);
-            this.page = await this.browser.newPage();
-            await this.page.setViewport({ width: 1920, height: 1080 });
-            this.logger.info('Navegador inicializado correctamente');
+            // Lanzar Chrome con timeout y mejor manejo de errores
+            this.logger.info('Iniciando Chrome (esto puede tomar unos segundos)...');
+            try {
+                this.browser = await PuppeteerConfig.launchWithTimeout(launchOptions);
+                this.logger.info('Chrome iniciado correctamente');
+                this.page = await this.browser.newPage();
+                await this.page.setViewport({ width: 1920, height: 1080 });
+                this.logger.info('Navegador inicializado correctamente');
+            } catch (error) {
+                this.logger.error('Error al iniciar Chrome:', error);
+                throw new Error(`No se pudo iniciar Chrome: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+            }
         } catch (error) {
             this.logger.error('Error al inicializar el navegador:', error);
             throw error;

@@ -100,24 +100,29 @@ export class ImageProcessorService {
             let redCount = 0;
             let yellowCount = 0;
 
-            // Recorrer cada píxel (cada píxel tiene 3 o 4 valores: R, G, B, y opcionalmente A)
+            // Recorrer cada píxel optimizado (cada píxel tiene 3 o 4 valores: R, G, B, y opcionalmente A)
             const channels = info.channels;
+            const dataLength = data.length;
             
-            for (let i = 0; i < data.length; i += channels) {
+            // Optimización: procesar en un solo loop con condiciones optimizadas
+            for (let i = 0; i < dataLength; i += channels) {
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
 
-                // Detectar rojo: R alto, G y B bajos
-                // Rojo: R > 150, R > G*2, R > B*2
-                if (r > 150 && r > g * 1.5 && r > b * 1.5) {
-                    redCount++;
-                }
-
-                // Detectar amarillo: R y G altos, B bajo
-                // Amarillo: R > 150, G > 150, B < 150, |R-G| < 50
-                if (r > 150 && g > 150 && b < 150 && Math.abs(r - g) < 50) {
-                    yellowCount++;
+                // Optimización: evaluar condiciones más probables primero
+                if (r > 150) {
+                    // Detectar rojo: R alto, G y B bajos
+                    if (r > g * 1.5 && r > b * 1.5) {
+                        redCount++;
+                    }
+                    // Detectar amarillo: R y G altos, B bajo
+                    else if (g > 150 && b < 150) {
+                        const diff = r - g;
+                        if (diff >= -50 && diff <= 50) {  // Optimización: evitar Math.abs
+                            yellowCount++;
+                        }
+                    }
                 }
             }
 
