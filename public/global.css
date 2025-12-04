@@ -58,8 +58,8 @@ th {
     background-position: center;
     background-repeat: no-repeat;
     width: 100%;
-    height: 250px;
-    flex-shrink: 1;
+    height: 300px;
+    flex-shrink: 0;  /* No se encoge */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -150,7 +150,7 @@ th {
 
 .status-overlay {
     position: absolute;
-    right: -80px;
+    right: -40px;
     top: 50%;
     transform: translateY(-60%);
     z-index: 10;
@@ -264,8 +264,8 @@ th {
 }
 
 .map-workflow {
-    width: 500px;
-    height: 310px;
+    width: 600px;
+    height: 360px;
     border: 6px solid white;
     background-image: url('images/forecast.jpg');
     border-radius: 10px;

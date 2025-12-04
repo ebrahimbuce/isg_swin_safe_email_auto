@@ -59,11 +59,11 @@ export class ForecastService {
             // 5. Actualizar el HTML con la bandera correcta
             const alertStatus = await this.htmlGenerator.updateHTML(colorDetection);
             
-            // 6. Exportar HTML a imagen HD (1500x2257px)
+            // 6. Exportar HTML a imagen HD (1500x2500px)
             const outputImagePath = await this.htmlGenerator.exportToImage(
                 undefined,
                 1500,      // Ancho final HD
-                2257,      // Alto final HD
+                2500,      // Alto final HD (más alto para incluir footer)
                 'png'
             );
             

@@ -173,7 +173,7 @@ export class HTMLGeneratorService {
 
             // Viewport ajustado al contenido del HTML (luego se hace upscaling con Sharp)
             const captureWidth = 900;
-            const captureHeight = 1354;
+            const captureHeight = 1500;
 
             // Configuración de Puppeteer optimizada para servidores con poca RAM
             const launchOptions: any = {
