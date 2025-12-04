@@ -32,3 +32,8 @@ temp/
 # Puppeteer cache
 .cache/
 
+# Generated images (large files)
+public/final/output*.png
+public/images/forecast.jpg
+public/images/test-*.jpg
+
