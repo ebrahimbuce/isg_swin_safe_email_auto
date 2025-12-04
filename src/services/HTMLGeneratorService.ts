@@ -208,12 +208,11 @@ export class HTMLGeneratorService {
             });
 
             await page.goto(htmlPath, { 
-                waitUntil: 'domcontentloaded',  // Espera a que todas las imágenes se carguen (más rápido que networkidle0)
+                waitUntil: 'domcontentloaded',
                 timeout: 30000
             });
 
             await page.waitForSelector('.map-workflow', { timeout: 5000 });
-            // Esperar un poco más para asegurar que el mapa se renderice completamente
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar el elemento principal
