@@ -29,6 +29,37 @@ screenshots/
 temp/
 *.tmp
 
+
 # Puppeteer cache
 .cache/
 
+# Generated images (large files - regenerated on each run)
+public/final/output*
+public/final/temp_capture.png
+public/images/forecast.jpg
+public/images/test-*.jpg
+public/images/test-*.png
+
+# PM2 logs (if generated)
+pm2.log
+*.pid
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs.db
+Desktop.ini

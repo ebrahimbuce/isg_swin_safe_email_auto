@@ -41,25 +41,35 @@ export class ForecastService {
      * Actualiza el HTML con la bandera correspondiente
      */
     async getForecast(): Promise<ForecastResult> {
+        let image: Buffer | null = null;
+        let processedImage: Buffer | null = null;
+        
         try {
             this.logger.info('Iniciando obtención de forecast...');
             
             // 1. Obtener la imagen de la URL
-            const image = await this.getImage();
+            image = await this.getImage();
             
             // 2. Procesar la imagen (recortar partes superior e inferior)
-            const processedImage = await this.processImage(image);
+            processedImage = await this.processImage(image);
             
-            // 3. Detectar colores en la imagen procesada (usando umbral mínimo)
+            // 3. Liberar imagen original inmediatamente (libera memoria)
+            image = null;
+            
+            // 4. Detectar colores en la imagen procesada (usando umbral mínimo)
+            // NOTA: Mantenemos resolución completa para precisión en detección
             const colorDetection = await this.detectColorsMinimal(processedImage);
             
-            // 4. Guardar la imagen procesada
+            // 5. Guardar la imagen procesada
             await this.saveImage(processedImage);
             
-            // 5. Actualizar el HTML con la bandera correcta
+            // 6. Liberar imagen procesada después de guardar (libera memoria)
+            processedImage = null;
+            
+            // 7. Actualizar el HTML con la bandera correcta
             const alertStatus = await this.htmlGenerator.updateHTML(colorDetection);
             
-            // 6. Exportar HTML a imagen HD (1500x2500px)
+            // 8. Exportar HTML a imagen HD (1500x2500px)
             const outputImagePath = await this.htmlGenerator.exportToImage(
                 undefined,
                 1500,      // Ancho final HD
@@ -70,7 +80,7 @@ export class ForecastService {
             this.logger.info('Forecast obtenido y procesado exitosamente');
             this.logColorDetectionSummary(colorDetection);
             
-            // 7. Mostrar resumen
+            // 9. Mostrar resumen
             const summary = this.htmlGenerator.generateSummary(colorDetection, alertStatus);
             console.log(summary);
             
@@ -84,6 +94,10 @@ export class ForecastService {
         } catch (error) {
             this.logger.error('Error al obtener forecast:', error);
             throw error;
+        } finally {
+            // Asegurar limpieza de buffers en caso de error
+            image = null;
+            processedImage = null;
         }
     }
 

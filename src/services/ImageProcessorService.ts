@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { Logger } from './Logger.js';
+import fs from 'fs';
 
 export interface ImageProcessingOptions {
     width?: number;
@@ -35,7 +36,19 @@ export class ImageProcessorService {
 
     async saveImage(image: Buffer, path: string): Promise<void> {
         this.logger.debug(`Guardando imagen en: ${path}`);
-        await sharp(image).toFile(path);
+        
+        // Usar stream para evitar duplicar buffer en memoria
+        const writeStream = fs.createWriteStream(path);
+        
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('error', reject);
+            writeStream.on('finish', resolve);
+            
+            sharp(image)
+                .pipe(writeStream)
+                .on('error', reject);
+        });
+        
         this.logger.info(`Imagen guardada: ${path}`);
     }
 

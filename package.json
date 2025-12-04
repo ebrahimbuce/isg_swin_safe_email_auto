@@ -13,6 +13,7 @@
     "test:colors": "tsx src/__test__/test-color-detection.ts",
     "test:alerts": "tsx src/__test__/test-alert-levels.ts",
     "test:generate-alerts": "tsx src/__test__/test-generate-all-alerts.ts",
+    "test:memory": "tsx src/__test__/test-memory-optimizations.ts",
     "test:email": "tsx src/__test__/test-email.ts --",
     "test:cron": "tsx src/__test__/test-cron.ts",
     "test:flow": "tsx src/__test__/test-full-flow.ts --",

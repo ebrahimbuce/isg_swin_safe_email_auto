@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import puppeteer from 'puppeteer';
+import puppeteer, { Page } from 'puppeteer';
 import sharp from 'sharp';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -191,12 +191,18 @@ export class HTMLGeneratorService {
                     '--disable-default-apps',
                     '--no-first-run',
                     '--no-zygote',
-                    // Optimizaciones de memoria
-                    '--js-flags=--max-old-space-size=256',
+                    // Optimizaciones de memoria mejoradas
+                    '--js-flags=--max-old-space-size=128',
                     '--disable-accelerated-2d-canvas',
                     '--disable-canvas-aa',
                     '--disable-2d-canvas-clip-aa',
-                    '--disable-gl-drawing-for-tests'
+                    '--disable-gl-drawing-for-tests',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection',
+                    '--memory-pressure-off'
                 ]
             };
 
@@ -222,7 +228,7 @@ export class HTMLGeneratorService {
 
             browser = await puppeteer.launch(launchOptions);
 
-            const page = await browser.newPage();
+            let page: Page | null = await browser.newPage();
 
             await page.setViewport({
                 width: captureWidth,
@@ -254,6 +260,9 @@ export class HTMLGeneratorService {
                 });
             }
 
+            // CERRAR CHROME INMEDIATAMENTE después de captura (libera ~100-150 MB)
+            await page.close();
+            page = null;
             await browser.close();
             browser = null;
 
@@ -296,8 +305,10 @@ export class HTMLGeneratorService {
                     .toFile(finalOutputPath);
             }
 
-            // Eliminar archivo temporal
-            await fs.unlink(tempPath);
+            // Eliminar archivo temporal inmediatamente (libera espacio en disco)
+            await fs.unlink(tempPath).catch(() => {
+                // Ignorar error si el archivo ya no existe
+            });
 
             const stats = await fs.stat(finalOutputPath);
             

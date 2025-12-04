@@ -27,12 +27,18 @@ export class BrowserService {
                     '--disable-default-apps',
                     '--no-first-run',
                     '--no-zygote',
-                    // Optimizaciones de memoria
-                    '--js-flags=--max-old-space-size=256',
+                    // Optimizaciones de memoria mejoradas
+                    '--js-flags=--max-old-space-size=128',
                     '--disable-accelerated-2d-canvas',
                     '--disable-canvas-aa',
                     '--disable-2d-canvas-clip-aa',
-                    '--disable-gl-drawing-for-tests'
+                    '--disable-gl-drawing-for-tests',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection',
+                    '--memory-pressure-off'
                 ]
             };
 
