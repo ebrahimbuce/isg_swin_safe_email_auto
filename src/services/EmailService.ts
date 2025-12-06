@@ -206,7 +206,7 @@ export class EmailService {
         .alert-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
         .date { color: #666; font-size: 14px; text-align: center; margin: 10px 0; }
         .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; }
-        .forecast-image { width: 100%; max-width: 500px; border-radius: 8px; margin: 15px 0; display: block; }
+        .forecast-image { max-width: 100%; border-radius: 8px; margin: 15px 0; display: block; }
     </style>
 </head>
 <body>
@@ -222,7 +222,7 @@ export class EmailService {
                 <p>${alert.message}</p>
             </div>
             <p style="text-align: center; margin-bottom: 10px;">Mapa de condiciones actuales de las playas de Puerto Rico:</p>
-            <img src="cid:forecast-image" alt="Forecast Map" class="forecast-image" style="width: 100%; max-width: 500px; border-radius: 8px; display: block; margin: 0 auto;">
+            <img src="cid:forecast-image" alt="Forecast Map" class="forecast-image" style="max-width: 100%; border-radius: 8px; display: block; margin: 0 auto;">
         </div>
         <div class="footer">
             <p>Este es un correo automático generado por Swim Safe Puerto Rico</p>

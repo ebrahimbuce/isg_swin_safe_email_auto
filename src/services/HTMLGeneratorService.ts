@@ -173,7 +173,8 @@ export class HTMLGeneratorService {
             const htmlPath = `file://${this.outputPath}`;
 
             // Viewport ajustado al contenido del HTML (luego se hace upscaling con Sharp)
-            const captureWidth = 900;
+            // Ancho aumentado para incluir el overlay que se extiende a la derecha (mapa 600px + label 400px + margen 40px)
+            const captureWidth = 1100;
             const captureHeight = 1500;
 
             // Obtener configuración compartida de Puppeteer
@@ -216,9 +217,14 @@ export class HTMLGeneratorService {
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar el elemento principal
+            // Sin clip para que capture todo el contenido, incluso el que se extiende más allá del viewport
             const element = await page.$('.bg-gradient-primary');
             
             if (element) {
+                // Esperar a que el contenido se renderice completamente
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Capturar sin clip para asegurar que incluya todo el contenido visible del elemento
                 await element.screenshot({
                     path: tempPath,
                     type: 'png'
@@ -237,12 +243,23 @@ export class HTMLGeneratorService {
             await browser.close();
             browser = null;
 
-            // Redimensionar con upscaling de alta calidad
-            this.logger.info(`Upscaling a ${finalWidth}x${finalHeight} con alta calidad...`);
+            // Obtener dimensiones reales de la imagen capturada para mantener el aspect ratio
+            const imageMetadata = await sharp(tempPath).metadata();
+            const capturedWidth = imageMetadata.width || captureWidth;
+            const capturedHeight = imageMetadata.height || captureHeight;
+            const aspectRatio = capturedWidth / capturedHeight;
+
+            // Priorizar mantener 1500px de ancho y calcular el alto proporcionalmente
+            const targetWidth = finalWidth; // Siempre 1500px
+            const targetHeight = Math.round(finalWidth / aspectRatio);
+
+            this.logger.info(`Imagen capturada: ${capturedWidth}x${capturedHeight} (aspect ratio: ${aspectRatio.toFixed(3)})`);
+            this.logger.info(`Redimensionando a: ${targetWidth}x${targetHeight} (ancho fijo: ${targetWidth}px)`);
             
             const sharpInstance = sharp(tempPath)
                 // Upscaling con el mejor algoritmo (lanczos3 es ideal para ampliar)
-                .resize(finalWidth, finalHeight, {
+                // Usar 'fill' para mantener exactamente 1500px de ancho
+                .resize(targetWidth, targetHeight, {
                     fit: 'fill',
                     kernel: 'lanczos3',
                     withoutEnlargement: false
