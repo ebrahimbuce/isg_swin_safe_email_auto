@@ -1,6 +1,7 @@
 import { Logger } from "./Logger.js";
 import { ImageProcessorService, ColorDetectionResult } from "./ImageProcessorService.js";
 import { HTMLGeneratorService, AlertStatus } from "./HTMLGeneratorService.js";
+import { SummaryFormatter } from "../utils/SummaryFormatter.js";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -81,7 +82,7 @@ export class ForecastService {
             this.logColorDetectionSummary(colorDetection);
             
             // 9. Mostrar resumen
-            const summary = this.htmlGenerator.generateSummary(colorDetection, alertStatus);
+            const summary = SummaryFormatter.generateSummary(colorDetection, alertStatus);
             console.log(summary);
             
             return {

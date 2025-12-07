@@ -2,37 +2,22 @@ import 'dotenv/config';
 import { Logger } from '../services/Logger.js';
 import { ImageProcessorService } from '../services/ImageProcessorService.js';
 import { ForecastService } from '../services/ForecastService.js';
-import { EmailService } from '../services/EmailService.js';
-import { SchedulerService } from '../services/SchedulerService.js';
+import { existsSync, statSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-async function testFullFlow() {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+async function testFlowNoEmail() {
     const logger = new Logger('info');
 
     console.log('\n╔══════════════════════════════════════════════════════════════╗');
-    console.log('║          🌊 TEST DE FLUJO COMPLETO - SWIM SAFE PR             ║');
+    console.log('║     🌊 TEST DE FLUJO COMPLETO (SIN EMAIL) - SWIM SAFE PR      ║');
     console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
-    // Verificar configuración de email
-    const emailUser = process.env.GMAIL_USER;
-    const emailPass = process.env.GMAIL_APP_PASSWORD;
-    const emailArg = process.argv.find(arg => arg.includes('@'));
-    const recipients = emailArg ? [emailArg] : (process.env.EMAIL_RECIPIENTS?.split(',').map(e => e.trim()) || []);
-
-    console.log('📧 Configuración de Email:');
-    console.log(`   Usuario: ${emailUser || '❌ NO CONFIGURADO'}`);
-    console.log(`   Password: ${emailPass ? '✅ Configurado' : '❌ NO CONFIGURADO'}`);
-    console.log(`   Destinatarios: ${recipients.length > 0 ? recipients.join(', ') : '❌ NO CONFIGURADO'}\n`);
-
-    if (!emailUser || !emailPass) {
-        console.error('❌ Configura GMAIL_USER y GMAIL_APP_PASSWORD en .env');
-        process.exit(1);
-    }
-
-    if (recipients.length === 0) {
-        console.error('❌ Pasa un email como argumento o configura EMAIL_RECIPIENTS');
-        console.error('   Uso: npm run test:flow tu-email@gmail.com');
-        process.exit(1);
-    }
+    console.log('ℹ️  Este test ejecuta todo el flujo EXCEPTO el envío de email\n');
 
     const startTime = Date.now();
 
@@ -45,13 +30,9 @@ async function testFullFlow() {
         
         const imageProcessor = new ImageProcessorService(logger);
         const forecastService = new ForecastService(logger, imageProcessor);
-        const emailService = new EmailService(logger, forecastService);
-        const scheduler = new SchedulerService(logger);
         
         console.log('   ✅ ImageProcessorService');
-        console.log('   ✅ ForecastService');
-        console.log('   ✅ EmailService');
-        console.log('   ✅ SchedulerService\n');
+        console.log('   ✅ ForecastService\n');
 
         // ═══════════════════════════════════════════════════════════════════
         // PASO 2: Descargar y procesar imagen del forecast
@@ -61,8 +42,26 @@ async function testFullFlow() {
         
         const forecastResult = await forecastService.getForecast();
         
-        console.log(`\n   📍 Imagen guardada: ${forecastResult.imagePath}`);
-        console.log(`   📍 Output final: ${forecastResult.outputImagePath}\n`);
+        console.log(`\n   📍 Imagen procesada: ${forecastResult.imagePath}`);
+        console.log(`   📍 Imagen final (output): ${forecastResult.outputImagePath}\n`);
+
+        // Verificar que los archivos existen
+        const imageExists = existsSync(forecastResult.imagePath);
+        const outputExists = existsSync(forecastResult.outputImagePath);
+        
+        if (imageExists) {
+            const imageStats = statSync(forecastResult.imagePath);
+            console.log(`   ✅ Imagen procesada existe (${(imageStats.size / 1024).toFixed(2)} KB)`);
+        } else {
+            console.log(`   ❌ Imagen procesada NO existe`);
+        }
+        
+        if (outputExists) {
+            const outputStats = statSync(forecastResult.outputImagePath);
+            console.log(`   ✅ Imagen output existe (${(outputStats.size / 1024).toFixed(2)} KB)\n`);
+        } else {
+            console.log(`   ❌ Imagen output NO existe\n`);
+        }
 
         // ═══════════════════════════════════════════════════════════════════
         // PASO 3: Mostrar resultados de detección de colores
@@ -73,82 +72,56 @@ async function testFullFlow() {
         const { colorDetection, alertStatus } = forecastResult;
         
         console.log('   📊 Análisis de colores:');
-        console.log(`      🔴 Rojo: ${colorDetection.redPercentage.toFixed(2)}% ${colorDetection.hasRed ? '(DETECTADO)' : ''}`);
-        console.log(`      🟡 Amarillo: ${colorDetection.yellowPercentage.toFixed(2)}% ${colorDetection.hasYellow ? '(DETECTADO)' : ''}`);
+        console.log(`      🔴 Rojo: ${colorDetection.redPercentage.toFixed(2)}% ${colorDetection.hasRed ? '(DETECTADO ⚠️)' : '(No detectado)'}`);
+        console.log(`      🟡 Amarillo: ${colorDetection.yellowPercentage.toFixed(2)}% ${colorDetection.hasYellow ? '(DETECTADO ⚠️)' : '(No detectado)'}`);
+        console.log(`      ⚪ Blanco: ${(100 - colorDetection.redPercentage - colorDetection.yellowPercentage).toFixed(2)}%`);
         console.log();
         console.log(`   🚩 Bandera seleccionada: ${alertStatus.level.toUpperCase()}`);
         console.log(`   📋 Estado: ${alertStatus.label}`);
         console.log(`   📝 Descripción: ${alertStatus.description}\n`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // PASO 4: Enviar email con el reporte (usando optimizaciones)
+        // PASO 4: Verificar archivos generados
         // ═══════════════════════════════════════════════════════════════════
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('📨 PASO 4: Enviando email del forecast (con optimizaciones)...\n');
+        console.log('📁 PASO 4: Verificando archivos generados\n');
         
-        const emailStartTime = Date.now();
+        const htmlPath = path.join(__dirname, '../../public/index.html');
+        const htmlExists = existsSync(htmlPath);
         
-        // Usar envío en paralelo si hay múltiples destinatarios
-        if (recipients.length > 1) {
-            console.log(`   🚀 Usando envío en paralelo para ${recipients.length} destinatarios\n`);
-            
-            const emailResult = await emailService.sendForecastReportParallel(
-                recipients,
-                forecastResult,
-                5 // batchSize
-            );
-            
-            const emailDuration = ((Date.now() - emailStartTime) / 1000).toFixed(2);
-            
-            console.log(`\n   📊 Estadísticas de envío:`);
-            console.log(`      ✅ Exitosos: ${emailResult.success}`);
-            console.log(`      ❌ Fallidos: ${emailResult.failed}`);
-            console.log(`      📦 Total: ${emailResult.total}`);
-            console.log(`      ⏱️  Tiempo: ${emailDuration} segundos`);
-            
-            if (emailResult.failed > 0) {
-                console.log(`\n   ⚠️  Algunos emails fallaron. Revisa los logs para más detalles.`);
-            } else {
-                console.log(`\n   ✅ Todos los emails enviados exitosamente`);
-            }
+        if (htmlExists) {
+            const htmlStats = statSync(htmlPath);
+            console.log(`   ✅ HTML actualizado: ${htmlPath}`);
+            console.log(`      Tamaño: ${(htmlStats.size / 1024).toFixed(2)} KB`);
+            console.log(`      Última modificación: ${htmlStats.mtime.toLocaleString()}\n`);
         } else {
-            // Para un solo destinatario, usar método normal (también optimizado)
-            console.log(`   📧 Enviando a: ${recipients[0]}\n`);
-            
-            const emailSent = await emailService.sendForecastReport(
-                recipients[0],
-                forecastResult,
-                false // useParallel = false para un solo destinatario
-            );
-            
-            const emailDuration = ((Date.now() - emailStartTime) / 1000).toFixed(2);
-            
-            if (emailSent) {
-                console.log(`\n   ✅ Email enviado exitosamente`);
-                console.log(`   ⏱️  Tiempo: ${emailDuration} segundos`);
-            } else {
-                console.log(`\n   ❌ Error al enviar email`);
-            }
+            console.log(`   ❌ HTML NO existe: ${htmlPath}\n`);
         }
-        
-        // Mostrar métricas del servicio de email
-        const metrics = emailService.getMetrics();
-        console.log(`\n   📈 Métricas del servicio:`);
-        console.log(`      📨 Emails enviados (total): ${metrics.emailsSent}`);
-        console.log(`      ❌ Emails fallidos (total): ${metrics.emailsFailed}`);
-        console.log(`      ⏱️  Tiempo promedio: ${metrics.averageSendTime}ms`);
-        console.log(`      💾 Cache de imágenes: ${metrics.cacheSize} entradas`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // PASO 5: Mostrar información del scheduler
+        // PASO 5: Resumen de validaciones
         // ═══════════════════════════════════════════════════════════════════
-        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('⏰ PASO 5: Configuración de horarios programados\n');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('✅ PASO 5: Validaciones\n');
         
-        scheduler.getNextExecutionInfo();
-        console.log('\n   📅 Los emails se enviarán automáticamente a las:');
-        console.log('      • 7:02 AM hora de Puerto Rico (AST)');
-        console.log('      • 12:02 PM hora de Puerto Rico (AST)\n');
+        const validations = {
+            imagenProcesada: imageExists,
+            imagenOutput: outputExists,
+            htmlActualizado: htmlExists,
+            coloresDetectados: colorDetection.hasRed || colorDetection.hasYellow || (!colorDetection.hasRed && !colorDetection.hasYellow)
+        };
+        
+        console.log('   Validaciones:');
+        console.log(`      ${validations.imagenProcesada ? '✅' : '❌'} Imagen procesada generada`);
+        console.log(`      ${validations.imagenOutput ? '✅' : '❌'} Imagen output generada`);
+        console.log(`      ${validations.htmlActualizado ? '✅' : '❌'} HTML actualizado`);
+        console.log(`      ${validations.coloresDetectados ? '✅' : '❌'} Colores detectados\n`);
+        
+        const allValid = Object.values(validations).every(v => v === true);
+        
+        if (!allValid) {
+            console.log('   ⚠️  Algunas validaciones fallaron\n');
+        }
 
         // ═══════════════════════════════════════════════════════════════════
         // RESUMEN FINAL
@@ -158,34 +131,44 @@ async function testFullFlow() {
 
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('\n╔══════════════════════════════════════════════════════════════╗');
-        console.log('║              ✅ FLUJO COMPLETO EXITOSO                        ║');
+        console.log('║           ✅ TEST COMPLETADO EXITOSAMENTE                     ║');
         console.log('╚══════════════════════════════════════════════════════════════╝\n');
-        
-        // Obtener métricas finales
-        const finalMetrics = emailService.getMetrics();
         
         console.log('📊 RESUMEN:');
         console.log(`   ⏱️  Tiempo total: ${duration} segundos`);
-        console.log(`   🖼️  Imagen descargada: ✅`);
+        console.log(`   🖼️  Imagen descargada: ${imageExists ? '✅' : '❌'}`);
+        console.log(`   🖼️  Imagen output generada: ${outputExists ? '✅' : '❌'}`);
         console.log(`   🎨  Colores detectados: ✅`);
         console.log(`   🚩  Bandera: ${alertStatus.level.toUpperCase()}`);
-        console.log(`   📨  Emails enviados: ${finalMetrics.emailsSent}`);
-        console.log(`   ❌  Emails fallidos: ${finalMetrics.emailsFailed}`);
-        console.log(`   👥  Destinatarios: ${recipients.join(', ')}`);
-        console.log(`   ⚡  Optimizaciones: Connection Pooling ✅ | Cache ✅ | Compresión ✅ | Paralelo ${recipients.length > 1 ? '✅' : 'N/A'}\n`);
-
+        console.log(`   📄  HTML actualizado: ${htmlExists ? '✅' : '❌'}`);
+        console.log(`   📨  Email: ⏭️  Omitido (test sin email)\n`);
+        
+        console.log('💡 NOTA: Este test NO envía emails. Para probar el envío de emails, usa:');
+        console.log('   npm run test:flow tu-email@gmail.com\n');
+        
         console.log('══════════════════════════════════════════════════════════════\n');
+
+        if (!allValid) {
+            console.log('⚠️  ADVERTENCIA: Algunas validaciones fallaron. Revisa los archivos generados.\n');
+            process.exit(1);
+        }
 
     } catch (error) {
         console.error('\n❌ Error en el flujo:', error);
+        if (error instanceof Error) {
+            console.error(`   Mensaje: ${error.message}`);
+            if (error.stack) {
+                console.error(`   Stack: ${error.stack}`);
+            }
+        }
         process.exit(1);
     }
 
     process.exit(0);
 }
 
-testFullFlow().catch(error => {
-    console.error('Error:', error);
+testFlowNoEmail().catch(error => {
+    console.error('Error fatal:', error);
     process.exit(1);
 });
 

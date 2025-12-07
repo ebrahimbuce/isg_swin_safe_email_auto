@@ -15,8 +15,9 @@
     "test:generate-alerts": "tsx src/__test__/test-generate-all-alerts.ts",
     "test:memory": "tsx src/__test__/test-memory-optimizations.ts",
     "test:email": "tsx src/__test__/test-email.ts --",
-    "test:cron": "tsx src/__test__/test-cron.ts",
-    "test:flow": "tsx src/__test__/test-full-flow.ts --"
+    "test:flow": "tsx src/__test__/test-full-flow.ts --",
+    "test:flow:no-email": "tsx src/__test__/test-flow-no-email.ts",
+    "test:cron": "tsx src/__test__/test-cron.ts"
   },
   "keywords": [
     "nodejs",
@@ -39,7 +40,7 @@
     "node-cron": "^4.2.1",
     "node-vibrant": "^4.0.3",
     "nodemailer": "^7.0.11",
-    "puppeteer": "^24.31.0",
+    "playwright": "^1.48.0",
     "sharp": "^0.34.5"
   }
 }

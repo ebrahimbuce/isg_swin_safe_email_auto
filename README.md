@@ -99,7 +99,9 @@ GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 # Destinatarios (separados por coma)
 EMAIL_RECIPIENTS=email1@gmail.com,email2@gmail.com
 
-# Chrome
+# Chromium (Playwright)
+PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+# O usar PUPPETEER_EXECUTABLE_PATH para compatibilidad hacia atrás
 PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ```
 
@@ -170,7 +172,7 @@ npm run start
 | `GMAIL_USER` | ✅ | Email de Gmail |
 | `GMAIL_APP_PASSWORD` | ✅ | App Password de Gmail |
 | `EMAIL_RECIPIENTS` | ✅ | Emails separados por coma |
-| `PUPPETEER_EXECUTABLE_PATH` | Servidor | Ruta a Chrome |
+| `PLAYWRIGHT_EXECUTABLE_PATH` | Servidor | Ruta a Chromium (o usar `PUPPETEER_EXECUTABLE_PATH` para compatibilidad) |
 
 ---
 

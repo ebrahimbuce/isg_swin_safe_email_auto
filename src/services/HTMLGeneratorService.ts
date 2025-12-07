@@ -4,9 +4,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import puppeteer, { Page } from 'puppeteer';
+import { chromium, Browser, Page, BrowserContext } from 'playwright';
 import sharp from 'sharp';
-import { PuppeteerConfig } from './PuppeteerConfig.js';
+import { PlaywrightConfig } from './PlaywrightConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -126,28 +126,6 @@ export class HTMLGeneratorService {
         }
     }
 
-    /**
-     * Genera un resumen del estado actual
-     */
-    generateSummary(detection: ColorDetectionResult, alertStatus: AlertStatus): string {
-        const lines = [
-            '╔══════════════════════════════════════════════════════════════╗',
-            '║               RESUMEN DE ESTADO DE PLAYA                     ║',
-            '╚══════════════════════════════════════════════════════════════╝',
-            '',
-            `📊 Detección de Colores:`,
-            `   🔴 Rojo: ${detection.redPercentage}%`,
-            `   🟡 Amarillo: ${detection.yellowPercentage}%`,
-            '',
-            `🚩 Bandera Seleccionada: ${alertStatus.level.toUpperCase()}`,
-            `📋 Estado: ${alertStatus.label}`,
-            `📝 Descripción: ${alertStatus.description}`,
-            '',
-            '══════════════════════════════════════════════════════════════'
-        ];
-
-        return lines.join('\n');
-    }
 
     /**
      * Exporta el HTML a una imagen PNG o JPG
@@ -159,7 +137,8 @@ export class HTMLGeneratorService {
         finalHeight: number = 2257,
         format: 'png' | 'jpeg' = 'png'
     ): Promise<string> {
-        let browser = null;
+        let browser: Browser | null = null;
+        let context: BrowserContext | null = null;
         
         try {
             this.logger.info(`Exportando HTML a imagen (final: ${finalWidth}x${finalHeight})...`);
@@ -176,36 +155,37 @@ export class HTMLGeneratorService {
             const captureWidth = 900;
             const captureHeight = 1500;
 
-            // Obtener configuración compartida de Puppeteer
-            const launchOptions = PuppeteerConfig.getLaunchOptions();
+            // Obtener configuración compartida de Playwright
+            const launchOptions = PlaywrightConfig.getLaunchOptions();
             
             // Buscar Chrome en rutas conocidas
-            await PuppeteerConfig.findChromeExecutable(launchOptions);
+            await PlaywrightConfig.findChromeExecutable(launchOptions);
             if (launchOptions.executablePath) {
-                this.logger.info(`Usando Chrome: ${launchOptions.executablePath}`);
+                this.logger.info(`Usando Chromium: ${launchOptions.executablePath}`);
             }
 
-            // Lanzar Chrome con timeout y mejor manejo de errores
-            this.logger.info('Iniciando Chrome (esto puede tomar unos segundos)...');
+            // Lanzar Chromium con timeout y mejor manejo de errores
+            this.logger.info('Iniciando Chromium (esto puede tomar unos segundos)...');
             try {
-                browser = await PuppeteerConfig.launchWithTimeout(launchOptions);
-                this.logger.info('Chrome iniciado correctamente');
+                browser = await PlaywrightConfig.launchWithTimeout(launchOptions);
+                this.logger.info('Chromium iniciado correctamente');
             } catch (error) {
-                this.logger.error('Error al iniciar Chrome:', error);
-                throw new Error(`No se pudo iniciar Chrome: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+                this.logger.error('Error al iniciar Chromium:', error);
+                throw new Error(`No se pudo iniciar Chromium: ${error instanceof Error ? error.message : 'Error desconocido'}`);
             }
 
-            let page: Page | null = await browser.newPage();
-            
-            if (!page) {
-                throw new Error('No se pudo crear la página en Chrome');
-            }
-
-            await page.setViewport({
+            // Crear contexto con viewport configurado
+            context = await PlaywrightConfig.createContext(browser, {
                 width: captureWidth,
                 height: captureHeight,
                 deviceScaleFactor: 2  // Balance entre calidad y uso de memoria
             });
+
+            let page: Page | null = await context.newPage();
+            
+            if (!page) {
+                throw new Error('No se pudo crear la página en Chromium');
+            }
 
             await page.goto(htmlPath, { 
                 waitUntil: 'domcontentloaded',  // Espera a que todas las imágenes se carguen (más rápido que networkidle0)
@@ -217,14 +197,21 @@ export class HTMLGeneratorService {
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar el elemento principal
-            const element = await page.$('.bg-gradient-primary');
+            const element = page.locator('.bg-gradient-primary').first();
             
-            if (element) {
-                await element.screenshot({
-                    path: tempPath,
-                    type: 'png'
-                });
-            } else {
+            try {
+                // Intentar capturar el elemento específico
+                const isVisible = await element.isVisible({ timeout: 1000 }).catch(() => false);
+                if (isVisible) {
+                    await element.screenshot({
+                        path: tempPath,
+                        type: 'png'
+                    });
+                } else {
+                    throw new Error('Element not visible');
+                }
+            } catch (error) {
+                // Si falla, capturar toda la página
                 await page.screenshot({
                     path: tempPath,
                     type: 'png',
@@ -235,6 +222,8 @@ export class HTMLGeneratorService {
             // CERRAR CHROME INMEDIATAMENTE después de captura (libera ~100-150 MB)
             await page.close();
             page = null;
+            await context.close();
+            context = null;
             await browser.close();
             browser = null;
 
@@ -293,8 +282,11 @@ export class HTMLGeneratorService {
             this.logger.error('Error al exportar imagen:', error);
             throw error;
         } finally {
+            if (context) {
+                await context.close().catch(() => {});
+            }
             if (browser) {
-                await browser.close();
+                await browser.close().catch(() => {});
             }
         }
     }

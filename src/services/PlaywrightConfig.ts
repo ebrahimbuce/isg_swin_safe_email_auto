@@ -1,16 +1,16 @@
-import puppeteer from 'puppeteer';
+import { chromium, Browser, BrowserContext, LaunchOptions } from 'playwright';
 
 /**
- * Configuración compartida de Puppeteer para Chrome
+ * Configuración compartida de Playwright para Chromium
  * Centraliza todas las opciones de launch para evitar duplicación
  */
-export class PuppeteerConfig {
+export class PlaywrightConfig {
     /**
      * Obtiene las opciones de launch optimizadas para servidores con poca RAM
      */
-    static getLaunchOptions(): any {
+    static getLaunchOptions(): LaunchOptions {
         return {
-            headless: 'new' as any,
+            headless: true,
             timeout: 30000,  // Timeout de 30 segundos para iniciar
             args: [
                 '--no-sandbox',
@@ -57,11 +57,11 @@ export class PuppeteerConfig {
     }
 
     /**
-     * Busca Chrome en rutas conocidas y lo agrega a las opciones
+     * Busca Chrome/Chromium en rutas conocidas y lo agrega a las opciones
      */
-    static async findChromeExecutable(launchOptions: puppeteer.LaunchOptions): Promise<void> {
+    static async findChromeExecutable(launchOptions: LaunchOptions): Promise<void> {
         const chromePaths = [
-            process.env.PUPPETEER_EXECUTABLE_PATH,
+            process.env.PLAYWRIGHT_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH,
             '/usr/bin/google-chrome-stable',
             '/usr/bin/google-chrome',
             '/usr/bin/chromium-browser',
@@ -82,24 +82,44 @@ export class PuppeteerConfig {
     }
 
     /**
-     * Lanza Chrome con timeout y mejor manejo de errores
+     * Lanza Chromium con timeout y mejor manejo de errores
      */
     static async launchWithTimeout(
-        launchOptions: puppeteer.LaunchOptions,
+        launchOptions: LaunchOptions,
         timeoutMs: number = 30000
-    ): Promise<puppeteer.Browser> {
+    ): Promise<Browser> {
+        // Buscar ejecutable si no está especificado
+        if (!launchOptions.executablePath) {
+            await this.findChromeExecutable(launchOptions);
+        }
+
         const launchedBrowser = await Promise.race([
-            puppeteer.launch(launchOptions),
+            chromium.launch(launchOptions),
             new Promise<never>((_, reject) => 
-                setTimeout(() => reject(new Error(`Timeout: Chrome no inició en ${timeoutMs}ms`)), timeoutMs)
+                setTimeout(() => reject(new Error(`Timeout: Chromium no inició en ${timeoutMs}ms`)), timeoutMs)
             )
         ]);
 
         if (!launchedBrowser) {
-            throw new Error('Chrome no se inició correctamente');
+            throw new Error('Chromium no se inició correctamente');
         }
 
         return launchedBrowser;
+    }
+
+    /**
+     * Crea un nuevo contexto de navegador con opciones optimizadas
+     */
+    static async createContext(browser: Browser, viewport?: { width: number; height: number; deviceScaleFactor?: number }): Promise<BrowserContext> {
+        return await browser.newContext({
+            viewport: viewport ? {
+                width: viewport.width,
+                height: viewport.height
+            } : undefined,
+            deviceScaleFactor: viewport?.deviceScaleFactor || 2,
+            // Desactivar imágenes para ahorrar memoria (opcional, comentar si se necesitan)
+            // ignoreHTTPSErrors: true
+        });
     }
 }
 
