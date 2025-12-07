@@ -70,11 +70,11 @@ export class ForecastService {
             // 6. Liberar imagen procesada después de guardar (libera memoria)
             processedImage = null;
             
-            // 8. Exportar HTML a imagen HD (1500x2500px)
+            // 8. Exportar HTML a imagen HD (1480px de ancho, alto proporcional)
             const outputImagePath = await this.htmlGenerator.exportToImage(
                 undefined,
-                1500,      // Ancho final HD
-                2500,      // Alto final HD (más alto para incluir footer)
+                1300,      // Ancho final HD (ligeramente reducido)
+                2500,      // Alto final HD (más alto para incluir footer, se ajusta proporcionalmente)
                 'png'
             );
             
