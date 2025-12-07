@@ -193,8 +193,9 @@ export class HTMLGeneratorService {
                 timeout: 30000
             });
 
-            await page.waitForSelector('.map-workflow', { timeout: 5000 });
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await page.waitForSelector('.map-workflow', { timeout: 10000 });
+            // Esperar un poco más para que la imagen de fondo del mapa se cargue completamente
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Capturar el elemento principal
             const element = page.locator('.bg-gradient-primary').first();

@@ -184,13 +184,13 @@ export class SchedulerService {
             this.logger.info(`   - forecast-morning-preview: 6:47 AM AST (preview)`);
         }
         if (activeTasks.includes('forecast-morning')) {
-            this.logger.info(`   - forecast-morning: 7:02 AM AST`);
+        this.logger.info(`   - forecast-morning: 7:02 AM AST`);
         }
         if (activeTasks.includes('forecast-noon-preview')) {
             this.logger.info(`   - forecast-noon-preview: 11:47 AM AST (preview)`);
         }
         if (activeTasks.includes('forecast-noon')) {
-            this.logger.info(`   - forecast-noon: 12:02 PM AST`);
+        this.logger.info(`   - forecast-noon: 12:02 PM AST`);
         }
     }
 }

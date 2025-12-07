@@ -112,15 +112,15 @@ export class ImageProcessorService {
 
                 // Optimización: evaluar condiciones más probables primero
                 if (r > 150) {
-                    // Detectar rojo: R alto, G y B bajos
+                // Detectar rojo: R alto, G y B bajos
                     if (r > g * 1.5 && r > b * 1.5) {
-                        redCount++;
-                    }
-                    // Detectar amarillo: R y G altos, B bajo
+                    redCount++;
+                }
+                // Detectar amarillo: R y G altos, B bajo
                     else if (g > 150 && b < 150) {
                         const diff = r - g;
                         if (diff >= -50 && diff <= 50) {  // Optimización: evitar Math.abs
-                            yellowCount++;
+                    yellowCount++;
                         }
                     }
                 }
