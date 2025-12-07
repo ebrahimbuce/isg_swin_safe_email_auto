@@ -197,7 +197,6 @@ export class HTMLGeneratorService {
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar el elemento principal
-<<<<<<< HEAD
             const element = page.locator('.bg-gradient-primary').first();
             
             try {
@@ -213,7 +212,6 @@ export class HTMLGeneratorService {
                 }
             } catch (error) {
                 // Si falla, capturar toda la página
-=======
             // Sin clip para que capture todo el contenido, incluso el que se extiende más allá del viewport
             const element = await page.$('.bg-gradient-primary');
             
@@ -227,12 +225,12 @@ export class HTMLGeneratorService {
                     type: 'png'
                 });
             } else {
->>>>>>> 90f4383125569f71f748ac250de7959a7c4d63e4
                 await page.screenshot({
                     path: tempPath,
                     type: 'png',
                     fullPage: true
                 });
+            }
             }
 
             // CERRAR CHROME INMEDIATAMENTE después de captura (libera ~100-150 MB)
