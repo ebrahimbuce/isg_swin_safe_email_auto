@@ -4,144 +4,152 @@ import { ImageProcessorService } from './ImageProcessorService.js';
 import { ForecastService } from './ForecastService.js';
 import { Logger } from './Logger.js';
 import { EmailService } from './EmailService.js';
+import { HTMLEmailGeneratorService } from './HTMLEmailGeneratorService.js';
 import { SchedulerService } from './SchedulerService.js';
 
 export class Application {
-    private logger: Logger;
-    private browserService: BrowserService;
-    private imageProcessor: ImageProcessorService;
-    private forecastService: ForecastService;
-    private emailService: EmailService;
-    private scheduler: SchedulerService;
+  private logger: Logger;
+  private browserService: BrowserService;
+  private imageProcessor: ImageProcessorService;
+  private forecastService: ForecastService;
+  private htmlEmailGenerator: HTMLEmailGeneratorService;
+  private emailService: EmailService;
+  private scheduler: SchedulerService;
 
-    constructor(private config: IConfig) {
-        this.logger = new Logger(config.logLevel);
-        this.browserService = new BrowserService(this.logger);
-        this.imageProcessor = new ImageProcessorService(this.logger);
-        this.forecastService = new ForecastService(this.logger, this.imageProcessor);
-        this.emailService = new EmailService(this.logger, this.forecastService);
-        this.scheduler = new SchedulerService(this.logger);
+  constructor(private config: IConfig) {
+    this.logger = new Logger(config.logLevel);
+    this.browserService = new BrowserService(this.logger);
+    this.imageProcessor = new ImageProcessorService(this.logger);
+    this.forecastService = new ForecastService(this.logger, this.imageProcessor);
+    this.htmlEmailGenerator = new HTMLEmailGeneratorService(this.logger);
+    this.emailService = new EmailService(
+      this.logger,
+      this.forecastService,
+      this.htmlEmailGenerator,
+      this.imageProcessor
+    );
+    this.scheduler = new SchedulerService(this.logger);
+  }
+
+  /**
+   * Inicia la aplicación CON scheduler interno (cron jobs)
+   */
+  async bootstrap(): Promise<void> {
+    this.logger.info('Iniciando aplicación con scheduler...');
+    this.logger.info(`Entorno: ${this.config.nodeEnv}`);
+    this.logger.info(`Puerto: ${this.config.port}`);
+
+    try {
+      // Programar los envíos automáticos de email
+      if (this.config.emailRecipients.length > 0) {
+        this.startScheduledEmails();
+      } else {
+        this.logger.warn('No hay destinatarios configurados - Los emails programados no se enviarán');
+      }
+
+      this.logger.info('Aplicación iniciada correctamente');
+      this.scheduler.getNextExecutionInfo();
+    } catch (error) {
+      this.logger.error('Error durante el bootstrap:', error);
+      throw error;
     }
+  }
 
-    /**
-     * Inicia la aplicación CON scheduler interno (cron jobs)
-     */
-    async bootstrap(): Promise<void> {
-        this.logger.info('Iniciando aplicación con scheduler...');
-        this.logger.info(`Entorno: ${this.config.nodeEnv}`);
-        this.logger.info(`Puerto: ${this.config.port}`);
+  /**
+   * Inicia la aplicación SIN scheduler interno (para usar con cron-job.org)
+   */
+  async bootstrapWithoutScheduler(): Promise<void> {
+    this.logger.info('Iniciando aplicación (modo HTTP)...');
+    this.logger.info(`Entorno: ${this.config.nodeEnv}`);
+    this.logger.info(`Puerto: ${this.config.port}`);
+    this.logger.info(`Destinatarios: ${this.config.emailRecipients.join(', ')}`);
+    this.logger.info('Aplicación lista para recibir peticiones HTTP');
+  }
 
-        try {
-            // Programar los envíos automáticos de email
-            if (this.config.emailRecipients.length > 0) {
-                this.startScheduledEmails();
-            } else {
-                this.logger.warn('No hay destinatarios configurados - Los emails programados no se enviarán');
-            }
+  // Email para recibir preview 15 minutos antes
+  private readonly PREVIEW_EMAIL = process.env.PREVIEW_EMAILS || '';
 
-            this.logger.info('Aplicación iniciada correctamente');
-            this.scheduler.getNextExecutionInfo();
-        } catch (error) {
-            this.logger.error('Error durante el bootstrap:', error);
-            throw error;
-        }
+  /**
+   * Inicia los envíos programados de email a las 7:02 AM y 12:02 PM AST
+   * También envía previews 15 minutos antes al email configurado
+   */
+  startScheduledEmails(): void {
+    this.logger.info('📅 Configurando envíos programados de email...');
+
+    // Función para envío principal (todos los destinatarios)
+    const sendMainForecast = async () => {
+      try {
+        this.logger.info('🚀 Iniciando envío programado de forecast...');
+        await this.emailService.sendForecastReport({ to: this.config.emailRecipients });
+        this.logger.info('✅ Envío programado completado');
+      } catch (error) {
+        this.logger.error('❌ Error en envío programado:', error);
+      }
+    };
+
+    // Función para envío preview (solo al email configurado)
+    const sendPreviewForecast = async () => {
+      try {
+        this.logger.info(`📬 Iniciando envío PREVIEW a ${this.PREVIEW_EMAIL}...`);
+        await this.emailService.sendForecastReport({ to: this.PREVIEW_EMAIL });
+        this.logger.info('✅ Envío preview completado');
+      } catch (error) {
+        this.logger.error('❌ Error en envío preview:', error);
+      }
+    };
+
+    this.scheduler.scheduleForecastEmails(sendMainForecast, sendPreviewForecast);
+  }
+
+  async shutdown(): Promise<void> {
+    this.logger.info('Cerrando aplicación...');
+    this.scheduler.stopAll();
+    this.emailService.close();
+    await this.browserService.close();
+    this.logger.info('Aplicación cerrada');
+  }
+
+  /**
+   * Ejecuta el envío de forecast inmediatamente (para pruebas manuales)
+   */
+  async runOnce(): Promise<void> {
+    try {
+      this.logger.info('Ejecutando envío manual de forecast...');
+      await this.emailService.sendForecastReport({ to: this.config.emailRecipients });
+      this.logger.info('Envío manual completado');
+    } catch (error) {
+      this.logger.error('Error en la ejecución:', error);
+      throw error;
     }
+  }
 
-    /**
-     * Inicia la aplicación SIN scheduler interno (para usar con cron-job.org)
-     */
-    async bootstrapWithoutScheduler(): Promise<void> {
-        this.logger.info('Iniciando aplicación (modo HTTP)...');
-        this.logger.info(`Entorno: ${this.config.nodeEnv}`);
-        this.logger.info(`Puerto: ${this.config.port}`);
-        this.logger.info(`Destinatarios: ${this.config.emailRecipients.join(', ')}`);
-        this.logger.info('Aplicación lista para recibir peticiones HTTP');
-    }
+  /**
+   * Obtiene la configuración de la aplicación
+   */
+  getConfig(): IConfig {
+    return this.config;
+  }
 
-    // Email para recibir preview 15 minutos antes
-    private readonly PREVIEW_EMAIL = 'ebrahimbuce@gmail.com';
+  /**
+   * Obtiene el servicio de forecast
+   */
+  getForecastService(): ForecastService {
+    return this.forecastService;
+  }
 
-    /**
-     * Inicia los envíos programados de email a las 7:02 AM y 12:02 PM AST
-     * También envía previews 15 minutos antes al email configurado
-     */
-    startScheduledEmails(): void {
-        this.logger.info('📅 Configurando envíos programados de email...');
-        
-        // Función para envío principal (todos los destinatarios)
-        const sendMainForecast = async () => {
-            try {
-                this.logger.info('🚀 Iniciando envío programado de forecast...');
-                await this.emailService.sendForecastReport(this.config.emailRecipients);
-                this.logger.info('✅ Envío programado completado');
-            } catch (error) {
-                this.logger.error('❌ Error en envío programado:', error);
-            }
-        };
+  /**
+   * Obtiene el servicio de scheduler
+   */
+  getScheduler(): SchedulerService {
+    return this.scheduler;
+  }
 
-        // Función para envío preview (solo al email configurado)
-        const sendPreviewForecast = async () => {
-            try {
-                this.logger.info(`📬 Iniciando envío PREVIEW a ${this.PREVIEW_EMAIL}...`);
-                await this.emailService.sendForecastReport(this.PREVIEW_EMAIL);
-                this.logger.info('✅ Envío preview completado');
-            } catch (error) {
-                this.logger.error('❌ Error en envío preview:', error);
-            }
-        };
-
-        this.scheduler.scheduleForecastEmails(sendMainForecast, sendPreviewForecast);
-    }
-
-    async shutdown(): Promise<void> {
-        this.logger.info('Cerrando aplicación...');
-        this.scheduler.stopAll();
-        this.emailService.close();
-        await this.browserService.close();
-        this.logger.info('Aplicación cerrada');
-    }
-
-    /**
-     * Ejecuta el envío de forecast inmediatamente (para pruebas manuales)
-     */
-    async runOnce(): Promise<void> {
-        try {
-            this.logger.info('Ejecutando envío manual de forecast...');
-            await this.emailService.sendForecastReport(this.config.emailRecipients);
-            this.logger.info('Envío manual completado');
-        } catch (error) {
-            this.logger.error('Error en la ejecución:', error);
-            throw error;
-        }
-    }
-    
-    /**
-     * Obtiene la configuración de la aplicación
-     */
-    getConfig(): IConfig {
-        return this.config;
-    }
-
-    /**
-     * Obtiene el servicio de forecast
-     */
-    getForecastService(): ForecastService {
-        return this.forecastService;
-    }
-
-    /**
-     * Obtiene el servicio de scheduler
-     */
-    getScheduler(): SchedulerService {
-        return this.scheduler;
-    }
-
-    /**
-     * Envía el reporte del forecast a los destinatarios especificados
-     * @param to - Destinatarios del email
-     * @returns true si se envió correctamente
-     */
-    async sendForecastReport(to: string | string[]): Promise<boolean> {
-        return await this.emailService.sendForecastReport(to);
-    }
+  /**
+   * Envía el reporte del forecast a los destinatarios especificados
+   * @param to - Destinatarios del email
+   * @returns true si se envió correctamente
+   */
+  async sendForecastReport(to: string | string[]): Promise<boolean> {
+    return await this.emailService.sendForecastReport({ to });
+  }
 }
