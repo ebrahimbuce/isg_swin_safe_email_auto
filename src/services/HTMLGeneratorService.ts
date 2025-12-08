@@ -153,7 +153,7 @@ export class HTMLGeneratorService {
 
             // Viewport ajustado al contenido del HTML (luego se hace upscaling con Sharp)
             // Ancho aumentado para incluir el overlay que se extiende a la derecha (mapa 600px + label 400px + margen 40px)
-            const captureWidth = 1100;
+            const captureWidth = 1000;
             const captureHeight = 1500;
 
             // Obtener configuración compartida de Playwright
