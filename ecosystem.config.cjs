@@ -6,7 +6,7 @@ module.exports = {
     instances: 1,
     autorestart: true,
     watch: false,
-    max_memory_restart: '500M',  // Reiniciar si excede 500MB
+    max_memory_restart: '550M',  // Reiniciar si excede 500MB
     node_args: '--max-old-space-size=350',  // Límite de heap de Node.js
     env: {
       NODE_ENV: 'production'
