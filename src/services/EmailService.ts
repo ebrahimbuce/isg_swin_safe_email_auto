@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import type { SendMailOptions, SentMessageInfo } from 'nodemailer';
 import { Logger } from './Logger.js';
 import { ForecastService } from './ForecastService.js';
 import { HTMLEmailGeneratorService } from './HTMLEmailGeneratorService.js';
@@ -380,7 +381,7 @@ export class EmailService extends InitializableService {
       const ext = path.extname(filename).toLowerCase();
       const contentType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
 
-      const mailOptions = {
+      const mailOptions: SendMailOptions = {
         from: this.config.auth.user,
         to: recipients,
         subject: subject,
@@ -404,7 +405,7 @@ export class EmailService extends InitializableService {
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const result = await this.transporter!.sendMail(mailOptions);
+          const result: SentMessageInfo = await this.transporter!.sendMail(mailOptions);
 
           const duration = Date.now() - startTime;
           this.metrics.emailsSent++;
