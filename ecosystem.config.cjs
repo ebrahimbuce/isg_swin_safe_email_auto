@@ -1,5 +1,3 @@
-const { cwd } = require('node:process');
-
 module.exports = {
   apps: [
     {
@@ -7,6 +5,7 @@ module.exports = {
       script: 'dist/main.js',
       cwd: '/home/ubuntu/isg_swin_safe_email_auto',
       instances: 1,
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '550M', // Reiniciar si excede 500MB
