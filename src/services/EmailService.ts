@@ -370,101 +370,64 @@ export class EmailService extends InitializableService {
       this.logger.info(`Enviando email con imagen embebida a: ${recipients}`);
       this.logger.info(`   Asunto: ${subject}`);
       this.logger.info(`   Tamaño de imagen: ${(imageBuffer.length / 1024).toFixed(2)} KB`);
-
-      // Verificar si la imagen es demasiado grande para inline
       const imageSizeKB = imageBuffer.length / 1024;
-      let htmlWithImage: string;
-
       if (imageSizeKB > 2000) {
-        // Si la imagen es muy grande (>2MB), usar como attachment con CID
-        this.logger.warn(`   ⚠️  Imagen grande (${imageSizeKB.toFixed(2)} KB), usando attachment en lugar de inline`);
+        this.logger.warn(`   ⚠️  Imagen grande (${imageSizeKB.toFixed(2)} KB), se enviará adjunta e inline`);
+      }
 
-        const mailOptions = {
-          from: this.config.auth.user,
-          to: recipients,
-          subject: subject,
-          html: htmlContent, // HTML con cid:forecast-image
-          attachments: [
-            {
-              filename: 'forecast.png',
-              content: imageBuffer,
-              cid: 'forecast-image',
-            },
-          ],
-        };
+      // Enviar siempre como attachment con CID para que aparezca inline y descargable
+      const filename = path.basename(imagePath) || 'forecast.png';
+      const ext = path.extname(filename).toLowerCase();
+      const contentType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
 
-        // Enviar con attachment
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            const result = await this.transporter!.sendMail(mailOptions);
-            const duration = Date.now() - startTime;
-            this.metrics.emailsSent++;
-            this.metrics.totalSendTime += duration;
+      const mailOptions = {
+        from: this.config.auth.user,
+        to: recipients,
+        subject: subject,
+        html: htmlContent,
+        attachments: [
+          {
+            filename,
+            content: imageBuffer,
+            cid: 'forecast-image',
+            contentDisposition: 'inline', // visible y descargable
+            contentType,
+          },
+          {
+            filename,
+            content: imageBuffer,
+            contentDisposition: 'attachment', // fuerza que aparezca como adjunto descargable
+            contentType,
+          },
+        ],
+      };
 
-            this.logger.info(`✅ Email enviado exitosamente (attachment) (intento ${attempt})`);
-            this.logger.info(`   Message ID: ${result.messageId}`);
-            this.logger.info(`   Destinatarios aceptados: ${result.accepted?.join(', ') || 'N/A'}`);
-            this.logger.info(`   Destinatarios rechazados: ${result.rejected?.join(', ') || 'Ninguno'}`);
-            this.logger.debug(`   Tiempo de envío: ${duration}ms`);
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await this.transporter!.sendMail(mailOptions);
 
-            return true;
-          } catch (error) {
-            if (attempt === maxRetries) {
-              this.metrics.emailsFailed++;
-              this.logger.error(`Error al enviar email después de ${maxRetries} intentos:`, error);
-              throw error;
-            }
+          const duration = Date.now() - startTime;
+          this.metrics.emailsSent++;
+          this.metrics.totalSendTime += duration;
 
-            const waitTime = 1000 * Math.pow(2, attempt - 1);
-            this.logger.warn(`Intento ${attempt} falló, reintentando en ${waitTime}ms...`);
-            await new Promise((resolve) => setTimeout(resolve, waitTime));
+          this.logger.info(`✅ Email enviado exitosamente (inline + adjunto) (intento ${attempt})`);
+          this.logger.info(`   Message ID: ${result.messageId}`);
+          this.logger.info(`   Destinatarios aceptados: ${result.accepted?.join(', ') || 'N/A'}`);
+          this.logger.info(`   Destinatarios rechazados: ${result.rejected?.join(', ') || 'Ninguno'}`);
+          this.logger.debug(`   Tiempo de envío: ${duration}ms`);
+
+          return true;
+        } catch (error) {
+          if (attempt === maxRetries) {
+            this.metrics.emailsFailed++;
+            this.logger.error(`Error al enviar email con imagen después de ${maxRetries} intentos:`, error);
+            throw error;
           }
-        }
-      } else {
-        // Imagen pequeña (<2MB), usar inline base64
-        this.logger.info(`   ✓ Imagen OK para inline (${imageSizeKB.toFixed(2)} KB)`);
 
-        const imageBase64 = imageBuffer.toString('base64');
-        const dataUri = `data:image/png;base64,${imageBase64}`;
-
-        // Reemplazar cid:forecast-image con data URI inline
-        htmlWithImage = htmlContent.replace(/src="cid:forecast-image"/g, `src="${dataUri}"`);
-
-        const mailOptions = {
-          from: this.config.auth.user,
-          to: recipients,
-          subject: subject,
-          html: htmlWithImage,
-        };
-
-        // Intentar enviar con retry
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            const result = await this.transporter!.sendMail(mailOptions);
-
-            const duration = Date.now() - startTime;
-            this.metrics.emailsSent++;
-            this.metrics.totalSendTime += duration;
-
-            this.logger.info(`✅ Email enviado exitosamente (inline base64) (intento ${attempt})`);
-            this.logger.info(`   Message ID: ${result.messageId}`);
-            this.logger.info(`   Destinatarios aceptados: ${result.accepted?.join(', ') || 'N/A'}`);
-            this.logger.info(`   Destinatarios rechazados: ${result.rejected?.join(', ') || 'Ninguno'}`);
-            this.logger.debug(`   Tiempo de envío: ${duration}ms`);
-
-            return true;
-          } catch (error) {
-            if (attempt === maxRetries) {
-              this.metrics.emailsFailed++;
-              this.logger.error(`Error al enviar email con imagen después de ${maxRetries} intentos:`, error);
-              throw error;
-            }
-
-            // Backoff exponencial
-            const waitTime = 1000 * Math.pow(2, attempt - 1);
-            this.logger.warn(`Intento ${attempt} falló, reintentando en ${waitTime}ms...`);
-            await new Promise((resolve) => setTimeout(resolve, waitTime));
-          }
+          // Backoff exponencial
+          const waitTime = 1000 * Math.pow(2, attempt - 1);
+          this.logger.warn(`Intento ${attempt} falló, reintentando en ${waitTime}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
         }
       }
 
