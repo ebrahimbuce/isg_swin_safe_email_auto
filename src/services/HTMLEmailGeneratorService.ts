@@ -47,46 +47,25 @@ export class HTMLEmailGeneratorService {
    * Genera el contenido HTML del email de forecast
    */
   generateForecastEmailHTML(data: EmailTemplateData): string {
+    // Preview text fijo (visible en inbox, oculto en email)
+    const previewText = 'Compañía de Turismo de Puerto Rico';
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { background: linear-gradient(to right, #05998c, #3cb6c6); color: white; padding: 20px; text-align: center; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .content { padding: 20px; }
-        .alert-box { padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; }
-        .alert-red { background: #ffebee; border: 2px solid #f44336; color: #c62828; }
-        .alert-yellow { background: #fff8e1; border: 2px solid #ffc107; color: #f57f17; }
-        .alert-white { background: #e8f5e9; border: 2px solid #4caf50; color: #2e7d32; }
-        .alert-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
-        .date { color: #666; font-size: 14px; text-align: center; margin: 10px 0; }
-        .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; }
-        .forecast-image { max-width: 100%; border-radius: 8px; margin: 15px 0; display: block; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #ffffff; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .forecast-image { max-width: 100%; display: block; margin: 0 auto; }
+        .preview-text { display: none; font-size: 1px; color: #ffffff; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; }
     </style>
 </head>
 <body>
+    <span class="preview-text">${previewText}</span>
     <div class="container">
-        <div class="header">
-            <h1>🏖️ Swim Safe Puerto Rico</h1>
-            <p>Reporte Diario de Condiciones del Mar</p>
-        </div>
-        <div class="content">
-            <p class="date">${data.date}</p>
-            <div class="alert-box alert-${data.alertLevel}">
-                <div class="alert-title">${data.alertEmoji} ${data.alertTitle}</div>
-                <p>${data.alertMessage}</p>
-            </div>
-            <p style="text-align: center; margin-bottom: 10px;">Mapa de condiciones actuales de las playas de Puerto Rico:</p>
-            <img src="cid:forecast-image" alt="Forecast Map" class="forecast-image" style="max-width: 100%; border-radius: 8px; display: block; margin: 0 auto;">
-        </div>
-        <div class="footer">
-            <p>Este es un correo automático generado por Swim Safe Puerto Rico</p>
-            <p>Para más información visite: weather.gov</p>
-        </div>
+        <img src="cid:forecast-image" alt="Swim Safe Puerto Rico - Beach Conditions" class="forecast-image" style="max-width: 100%; display: block; margin: 0 auto;">
     </div>
 </body>
 </html>
@@ -119,7 +98,7 @@ export class HTMLEmailGeneratorService {
    * Genera el asunto del email basado en el nivel de alerta
    */
   generateEmailSubject(data: EmailTemplateData): string {
-    return `${data.alertEmoji} Swim Safe PR - ${data.alertTitle} - ${data.date}`;
+    return 'SWIM SAFE PUERTO RICO';
   }
 
   /**

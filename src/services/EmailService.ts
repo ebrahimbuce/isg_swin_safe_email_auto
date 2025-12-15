@@ -3,6 +3,7 @@ import { Logger } from './Logger.js';
 import { ForecastService } from './ForecastService.js';
 import { HTMLEmailGeneratorService } from './HTMLEmailGeneratorService.js';
 import { ImageProcessorService } from './ImageProcessorService.js';
+import { InitializableService, InitializationResult } from './base/InitializableService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import type {
@@ -36,10 +37,9 @@ export type {
   SendForecastParallelParams,
 };
 
-export class EmailService {
+export class EmailService extends InitializableService {
   private transporter: Transporter | null = null;
   private config: EmailConfig;
-  private isInitialized: boolean = false;
   private metrics = {
     emailsSent: 0,
     emailsFailed: 0,
@@ -47,12 +47,13 @@ export class EmailService {
   };
 
   constructor(
-    private logger: Logger,
+    logger: Logger,
     private forecastService: ForecastService,
     private htmlEmailGenerator: HTMLEmailGeneratorService,
     private imageProcessor: ImageProcessorService,
     config?: Partial<EmailConfig>
   ) {
+    super(logger);
     // Configuración para Gmail usando variables de entorno
     this.config = {
       service: 'gmail',
@@ -63,41 +64,44 @@ export class EmailService {
     };
   }
 
+  protected getServiceName(): string {
+    return 'Email Service';
+  }
+
   /**
-   * Inicializa el transporter de email con connection pooling
+   * Implementación de la lógica de inicialización
    */
-  async initialize(): Promise<void> {
-    if (this.isInitialized && this.transporter) {
-      return; // Ya está inicializado
-    }
+  protected async doInitialize(): Promise<InitializationResult> {
+    // Configuración optimizada para Gmail con connection pooling
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.config.auth.user,
+        pass: this.config.auth.pass,
+      },
+      pool: true, // Habilitar connection pooling
+      maxConnections: 5, // Máximo de conexiones simultáneas
+      maxMessages: 100, // Máximo de mensajes por conexión
+      rateDelta: 1000, // Intervalo para rate limiting (1 segundo)
+      rateLimit: 5, // Máximo de emails por rateDelta
+    });
 
-    try {
-      this.logger.info('Inicializando servicio de email...');
-      this.logger.info(`   Usuario: ${this.config.auth.user}`);
+    // Verificar conexión
+    await this.transporter.verify();
 
-      // Configuración optimizada para Gmail con connection pooling
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: this.config.auth.user,
-          pass: this.config.auth.pass,
-        },
-        pool: true, // Habilitar connection pooling
-        maxConnections: 5, // Máximo de conexiones simultáneas
-        maxMessages: 100, // Máximo de mensajes por conexión
-        rateDelta: 1000, // Intervalo para rate limiting (1 segundo)
-        rateLimit: 5, // Máximo de emails por rateDelta
-      });
+    return {
+      success: true,
+      message: 'Connection pooling habilitado',
+      details: {
+        Usuario: this.config.auth.user,
+      },
+    };
+  }
 
-      // Verificar conexión
-      await this.transporter.verify();
-
-      this.isInitialized = true;
-      this.logger.info('✅ Servicio de email inicializado con connection pooling');
-    } catch (error) {
-      this.logger.error('Error al inicializar servicio de email:', error);
-      this.isInitialized = false;
-      throw error;
+  protected async doCleanup(): Promise<void> {
+    if (this.transporter) {
+      this.transporter.close();
+      this.transporter = null;
     }
   }
 
@@ -107,9 +111,7 @@ export class EmailService {
   async send(params: SendParams): Promise<boolean> {
     const { options, maxRetries = 3 } = params;
 
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
+    await this.ensureInitialized();
 
     const startTime = Date.now();
     const recipients = Array.isArray(options.to) ? options.to.join(', ') : options.to;
@@ -214,9 +216,7 @@ export class EmailService {
   private async sendSingleEmail(params: SendEmailParams): Promise<boolean> {
     const { to, subject, htmlContent, imageBuffer, maxRetries = 3 } = params;
 
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
+    await this.ensureInitialized();
 
     const startTime = Date.now();
 
@@ -354,9 +354,7 @@ export class EmailService {
    */
   async sendWithEmbeddedImage(params: SendWithEmbeddedImageParams): Promise<boolean> {
     const { to, subject, htmlContent, imagePath, maxRetries = 3, compress = true } = params;
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
+    await this.ensureInitialized();
 
     const startTime = Date.now();
 
@@ -371,46 +369,102 @@ export class EmailService {
 
       this.logger.info(`Enviando email con imagen embebida a: ${recipients}`);
       this.logger.info(`   Asunto: ${subject}`);
+      this.logger.info(`   Tamaño de imagen: ${(imageBuffer.length / 1024).toFixed(2)} KB`);
 
-      const mailOptions = {
-        from: this.config.auth.user,
-        to: recipients,
-        subject: subject,
-        html: htmlContent,
-        attachments: [
-          {
-            filename: 'forecast.png',
-            content: imageBuffer, // Usar buffer en lugar de path para mejor performance
-            cid: 'forecast-image', // Content-ID referenciado en el HTML como src="cid:forecast-image"
-          },
-        ],
-      };
+      // Verificar si la imagen es demasiado grande para inline
+      const imageSizeKB = imageBuffer.length / 1024;
+      let htmlWithImage: string;
 
-      // Intentar enviar con retry
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const result = await this.transporter!.sendMail(mailOptions);
+      if (imageSizeKB > 2000) {
+        // Si la imagen es muy grande (>2MB), usar como attachment con CID
+        this.logger.warn(`   ⚠️  Imagen grande (${imageSizeKB.toFixed(2)} KB), usando attachment en lugar de inline`);
 
-          const duration = Date.now() - startTime;
-          this.metrics.emailsSent++;
-          this.metrics.totalSendTime += duration;
+        const mailOptions = {
+          from: this.config.auth.user,
+          to: recipients,
+          subject: subject,
+          html: htmlContent, // HTML con cid:forecast-image
+          attachments: [
+            {
+              filename: 'forecast.png',
+              content: imageBuffer,
+              cid: 'forecast-image',
+            },
+          ],
+        };
 
-          this.logger.info(`✅ Email enviado exitosamente (intento ${attempt})`);
-          this.logger.info(`   Message ID: ${result.messageId}`);
-          this.logger.debug(`   Tiempo de envío: ${duration}ms`);
+        // Enviar con attachment
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const result = await this.transporter!.sendMail(mailOptions);
+            const duration = Date.now() - startTime;
+            this.metrics.emailsSent++;
+            this.metrics.totalSendTime += duration;
 
-          return true;
-        } catch (error) {
-          if (attempt === maxRetries) {
-            this.metrics.emailsFailed++;
-            this.logger.error(`Error al enviar email con imagen después de ${maxRetries} intentos:`, error);
-            throw error;
+            this.logger.info(`✅ Email enviado exitosamente (attachment) (intento ${attempt})`);
+            this.logger.info(`   Message ID: ${result.messageId}`);
+            this.logger.info(`   Destinatarios aceptados: ${result.accepted?.join(', ') || 'N/A'}`);
+            this.logger.info(`   Destinatarios rechazados: ${result.rejected?.join(', ') || 'Ninguno'}`);
+            this.logger.debug(`   Tiempo de envío: ${duration}ms`);
+
+            return true;
+          } catch (error) {
+            if (attempt === maxRetries) {
+              this.metrics.emailsFailed++;
+              this.logger.error(`Error al enviar email después de ${maxRetries} intentos:`, error);
+              throw error;
+            }
+
+            const waitTime = 1000 * Math.pow(2, attempt - 1);
+            this.logger.warn(`Intento ${attempt} falló, reintentando en ${waitTime}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
           }
+        }
+      } else {
+        // Imagen pequeña (<2MB), usar inline base64
+        this.logger.info(`   ✓ Imagen OK para inline (${imageSizeKB.toFixed(2)} KB)`);
 
-          // Backoff exponencial
-          const waitTime = 1000 * Math.pow(2, attempt - 1);
-          this.logger.warn(`Intento ${attempt} falló, reintentando en ${waitTime}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        const imageBase64 = imageBuffer.toString('base64');
+        const dataUri = `data:image/png;base64,${imageBase64}`;
+
+        // Reemplazar cid:forecast-image con data URI inline
+        htmlWithImage = htmlContent.replace(/src="cid:forecast-image"/g, `src="${dataUri}"`);
+
+        const mailOptions = {
+          from: this.config.auth.user,
+          to: recipients,
+          subject: subject,
+          html: htmlWithImage,
+        };
+
+        // Intentar enviar con retry
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const result = await this.transporter!.sendMail(mailOptions);
+
+            const duration = Date.now() - startTime;
+            this.metrics.emailsSent++;
+            this.metrics.totalSendTime += duration;
+
+            this.logger.info(`✅ Email enviado exitosamente (inline base64) (intento ${attempt})`);
+            this.logger.info(`   Message ID: ${result.messageId}`);
+            this.logger.info(`   Destinatarios aceptados: ${result.accepted?.join(', ') || 'N/A'}`);
+            this.logger.info(`   Destinatarios rechazados: ${result.rejected?.join(', ') || 'Ninguno'}`);
+            this.logger.debug(`   Tiempo de envío: ${duration}ms`);
+
+            return true;
+          } catch (error) {
+            if (attempt === maxRetries) {
+              this.metrics.emailsFailed++;
+              this.logger.error(`Error al enviar email con imagen después de ${maxRetries} intentos:`, error);
+              throw error;
+            }
+
+            // Backoff exponencial
+            const waitTime = 1000 * Math.pow(2, attempt - 1);
+            this.logger.warn(`Intento ${attempt} falló, reintentando en ${waitTime}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+          }
         }
       }
 
@@ -445,13 +499,10 @@ export class EmailService {
   /**
    * Cierra la conexión del transporter
    */
-  close(): void {
+  async close(): Promise<void> {
     if (this.transporter) {
-      this.transporter.close();
-      this.transporter = null;
-      this.isInitialized = false;
       this.imageProcessor.clearImageCache();
-      this.logger.info('Servicio de email cerrado');
     }
+    await this.cleanup();
   }
 }

@@ -1,45 +1,64 @@
 import { Browser, Page, BrowserContext } from 'playwright';
 import { Logger } from './Logger.js';
 import { PlaywrightConfig } from './PlaywrightConfig.js';
+import { InitializableService, InitializationResult } from './base/InitializableService.js';
 
-export class BrowserService {
+export class BrowserService extends InitializableService {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
 
-  constructor(private logger: Logger) {}
+  constructor(logger: Logger) {
+    super(logger);
+  }
 
-  async initialize(): Promise<void> {
+  protected getServiceName(): string {
+    return 'Browser Service';
+  }
+
+  protected async doInitialize(): Promise<InitializationResult> {
+    // Obtener configuración compartida de Playwright
+    const launchOptions = PlaywrightConfig.getLaunchOptions();
+
+    // Buscar Chrome en rutas conocidas
+    await PlaywrightConfig.findChromeExecutable(launchOptions);
+    const chromiumPath = launchOptions.executablePath;
+
+    // Lanzar Chromium con timeout y mejor manejo de errores
     try {
-      this.logger.info('Inicializando navegador...');
+      this.browser = await PlaywrightConfig.launchWithTimeout(launchOptions);
+      this.context = await PlaywrightConfig.createContext(this.browser, {
+        width: 1920,
+        height: 1080,
+      });
+      this.page = await this.context.newPage();
 
-      // Obtener configuración compartida de Playwright
-      const launchOptions = PlaywrightConfig.getLaunchOptions();
-
-      // Buscar Chrome en rutas conocidas
-      await PlaywrightConfig.findChromeExecutable(launchOptions);
-      if (launchOptions.executablePath) {
-        this.logger.info(`Usando Chromium: ${launchOptions.executablePath}`);
-      }
-
-      // Lanzar Chromium con timeout y mejor manejo de errores
-      this.logger.info('Iniciando Chromium (esto puede tomar unos segundos)...');
-      try {
-        this.browser = await PlaywrightConfig.launchWithTimeout(launchOptions);
-        this.logger.info('Chromium iniciado correctamente');
-        this.context = await PlaywrightConfig.createContext(this.browser, {
-          width: 1920,
-          height: 1080,
-        });
-        this.page = await this.context.newPage();
-        this.logger.info('Navegador inicializado correctamente');
-      } catch (error) {
-        this.logger.error('Error al iniciar Chromium:', error);
-        throw new Error(`No se pudo iniciar Chromium: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-      }
+      return {
+        success: true,
+        message: 'Chromium iniciado correctamente',
+        details: chromiumPath
+          ? {
+              Executable: chromiumPath,
+            }
+          : undefined,
+      };
     } catch (error) {
-      this.logger.error('Error al inicializar el navegador:', error);
-      throw error;
+      throw new Error(`No se pudo iniciar Chromium: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  }
+
+  protected async doCleanup(): Promise<void> {
+    if (this.page) {
+      await this.page.close();
+      this.page = null;
+    }
+    if (this.context) {
+      await this.context.close();
+      this.context = null;
+    }
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
     }
   }
 
@@ -82,17 +101,7 @@ export class BrowserService {
 
   // Cerrar el navegador y liberar recursos
   async close(): Promise<void> {
-    if (this.context) {
-      await this.context.close();
-      this.context = null;
-    }
-    if (this.browser) {
-      this.logger.info('Cerrando navegador...');
-      await this.browser.close();
-      this.browser = null;
-      this.page = null;
-      this.logger.info('Navegador cerrado');
-    }
+    await this.cleanup();
   }
 
   // Obtener la página actual
