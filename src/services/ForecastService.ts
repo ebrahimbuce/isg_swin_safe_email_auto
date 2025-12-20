@@ -30,6 +30,33 @@ export class ForecastService {
   }
 
   /**
+   * Obtiene solo el estado actual de la bandera sin generar archivos ni actualizar HTML
+   */
+  async checkCurrentStatus(): Promise<AlertStatus> {
+    let image: Buffer | null = null;
+    let processedImage: Buffer | null = null;
+
+    try {
+      // 1. Obtener la imagen
+      image = await this.getImage();
+
+      // 2. Procesar (recortar)
+      processedImage = await this.processImage(image);
+      image = null;
+
+      // 3. Detectar colores
+      const colorDetection = await this.detectColorsMinimal(processedImage);
+      processedImage = null;
+
+      // 4. Determinar nivel de alerta
+      return this.htmlGenerator.determineAlertLevel(colorDetection);
+    } catch (error) {
+      this.logger.error('Error al verificar estado:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtiene el pronóstico de riesgo de corrientes marinas
    * Descarga, procesa y guarda la imagen del forecast
    * Detecta la presencia de colores rojo y amarillo

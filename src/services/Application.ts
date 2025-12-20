@@ -3,6 +3,7 @@ import { BrowserService } from './BrowserService.js';
 import { ImageProcessorService } from './ImageProcessorService.js';
 import { ForecastService } from './ForecastService.js';
 import { Logger } from './Logger.js';
+import { Server } from './Server.js';
 import { EmailService } from './EmailService.js';
 import { HTMLEmailGeneratorService } from './HTMLEmailGeneratorService.js';
 import { SchedulerService } from './SchedulerService.js';
@@ -12,6 +13,7 @@ import type { ForecastResult } from './dto/ForecastDTO.js';
 
 export class Application {
   private logger: Logger;
+  private server: Server;
   private browserService: BrowserService;
   private imageProcessor: ImageProcessorService;
   private forecastService: ForecastService;
@@ -26,6 +28,7 @@ export class Application {
     this.browserService = new BrowserService(this.logger);
     this.imageProcessor = new ImageProcessorService(this.logger);
     this.forecastService = new ForecastService(this.logger, this.imageProcessor);
+    this.server = new Server(config, this.logger, this.forecastService);
     this.htmlEmailGenerator = new HTMLEmailGeneratorService(this.logger);
     this.emailService = new EmailService(
       this.logger,
@@ -66,6 +69,9 @@ export class Application {
     this.logger.info(`Puerto: ${this.config.port}`);
 
     try {
+      // Iniciar servidor HTTP
+      this.server.start();
+
       // Programar los envíos automáticos de email (solo preview)
       if (this.PREVIEW_EMAILS.length > 0) {
         this.startScheduledEmails();
@@ -89,14 +95,16 @@ export class Application {
     this.logger.info(`Entorno: ${this.config.nodeEnv}`);
     this.logger.info(`Puerto: ${this.config.port}`);
     this.logger.info(`Destinatarios: ${this.config.emailRecipients.join(', ')}`);
-    this.logger.info('Aplicación lista para recibir peticiones HTTP');
+
+    // Iniciar servidor HTTP
+    this.server.start();
   }
 
   // Emails para recibir preview 15 minutos antes (puede ser múltiples separados por coma)
   private readonly PREVIEW_EMAILS: string[] = (process.env.PREVIEW_EMAILS || '')
     .split(',')
-    .map(email => email.trim())
-    .filter(email => email.length > 0);
+    .map((email) => email.trim())
+    .filter((email) => email.length > 0);
 
   /**
    * Inicia los envíos programados de email
@@ -140,7 +148,7 @@ export class Application {
 
     // DESACTIVADO: Envío principal - solo pasar preview
     // this.scheduler.scheduleForecastEmails(sendMainForecast, sendPreviewForecast);
-    
+
     // Solo programar previews
     this.schedulePreviewOnly(sendPreviewForecast);
   }
@@ -156,7 +164,7 @@ export class Application {
       name: 'forecast-morning-preview',
       cronExpression: '47 6 * * *',
       timezone: timezone,
-      task: sendPreviewForecast
+      task: sendPreviewForecast,
     });
 
     // 11:47 AM Puerto Rico (15 min antes de 12:02 PM)
@@ -164,7 +172,7 @@ export class Application {
       name: 'forecast-noon-preview',
       cronExpression: '47 11 * * *',
       timezone: timezone,
-      task: sendPreviewForecast
+      task: sendPreviewForecast,
     });
   }
 
@@ -193,6 +201,7 @@ export class Application {
   async shutdown(): Promise<void> {
     this.logger.info('Cerrando aplicación...');
     this.scheduler.stopAll();
+    this.server.stop();
     await this.emailService.close();
     // DESACTIVADO: MailChimp
     // if (this.mailChimpService) {
