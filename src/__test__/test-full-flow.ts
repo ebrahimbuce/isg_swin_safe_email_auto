@@ -87,7 +87,7 @@ async function testFullFlow() {
     console.log();
     console.log(`   🚩 Bandera seleccionada: ${alertStatus.level.toUpperCase()}`);
     console.log(`   📋 Estado: ${alertStatus.label}`);
-    console.log(`   📝 Descripción: ${alertStatus.description}\n`);
+    // Descripción eliminada: propiedad no disponible
 
     // ═══════════════════════════════════════════════════════════════════
     // PASO 4: Enviar email SOLO al preview email

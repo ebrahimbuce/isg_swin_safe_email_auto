@@ -4,12 +4,13 @@
 
 import { ColorDetectionResult } from './ImageProcessorDTO.js';
 
-export type AlertLevel = 'red' | 'yellow' | 'white';
+export type AlertLevel = 'moderate' | 'low' | 'high';
 
 export interface AlertStatus {
   level: AlertLevel;
   label: string;
-  description: string;
+  label_en: string; // Etiqueta en Inglés
+  label_es: string; // Etiqueta en Español
 }
 
 export interface UpdateHTMLParams {

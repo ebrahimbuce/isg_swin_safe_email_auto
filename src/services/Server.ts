@@ -1,4 +1,5 @@
 import http from 'http';
+import { URL } from 'url';
 import { Logger } from './Logger.js';
 import { IConfig } from '../config/Config.js';
 import { ForecastService } from './ForecastService.js';
@@ -17,16 +18,33 @@ export class Server {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Type', 'application/json');
 
-      if (req.url === '/status' && req.method === 'GET') {
+      const parsedUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+      const pathName = parsedUrl.pathname;
+
+      // Soporta /status, /status/es, /status/en
+      const statusMatch = pathName.match(/^\/status(?:\/(es|en))?$/);
+
+      if (statusMatch && req.method === 'GET') {
+        const lang = statusMatch[1] || parsedUrl.searchParams.get('lang') || 'en';
+
         try {
           const status = await this.forecastService.checkCurrentStatus();
 
-          // Map level to high/moderate/low for the API response
-          const mappedLevel = status.level === 'red' ? 'high' : status.level === 'yellow' ? 'moderate' : 'low';
+          // Selección de idioma para la etiqueta
+          let displayLabel = status.label;
+          if (lang === 'es' && status.label_es) {
+            displayLabel = status.label_es;
+          } else if (lang === 'en' && status.label_en) {
+            displayLabel = status.label_en;
+          }
+
+          // Eliminar campos auxiliares internos de la respuesta pública
+          const { label_en, label_es, description, ...cleanStatus } = status as any;
 
           const response = {
-            ...status,
-            level: mappedLevel,
+            ...cleanStatus,
+            label: displayLabel, // Sobrescribe con la versión traducida seleccionada
+            lang: lang, // Indicar el idioma devuelto
           };
 
           res.writeHead(200);

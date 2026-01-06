@@ -5,30 +5,29 @@ import { AlertStatus } from '../services/HTMLGeneratorService.js';
  * Utilidades para formatear resúmenes y presentación de información
  */
 export class SummaryFormatter {
-    /**
-     * Genera un resumen formateado del estado actual de la playa
-     * @param detection - Resultado de la detección de colores
-     * @param alertStatus - Estado de alerta actual
-     * @returns String formateado con el resumen
-     */
-    static generateSummary(detection: ColorDetectionResult, alertStatus: AlertStatus): string {
-        const lines = [
-            '╔══════════════════════════════════════════════════════════════╗',
-            '║               RESUMEN DE ESTADO DE PLAYA                     ║',
-            '╚══════════════════════════════════════════════════════════════╝',
-            '',
-            `📊 Detección de Colores:`,
-            `   🔴 Rojo: ${detection.redPercentage}%`,
-            `   🟡 Amarillo: ${detection.yellowPercentage}%`,
-            '',
-            `🚩 Bandera Seleccionada: ${alertStatus.level.toUpperCase()}`,
-            `📋 Estado: ${alertStatus.label}`,
-            `📝 Descripción: ${alertStatus.description}`,
-            '',
-            '══════════════════════════════════════════════════════════════'
-        ];
+  /**
+   * Genera un resumen formateado del estado actual de la playa
+   * @param detection - Resultado de la detección de colores
+   * @param alertStatus - Estado de alerta actual
+   * @returns String formateado con el resumen
+   */
+  static generateSummary(detection: ColorDetectionResult, alertStatus: AlertStatus): string {
+    const lines = [
+      '╔══════════════════════════════════════════════════════════════╗',
+      '║               RESUMEN DE ESTADO DE PLAYA                     ║',
+      '╚══════════════════════════════════════════════════════════════╝',
+      '',
+      `📊 Detección de Colores:`,
+      `   🔴 Rojo: ${detection.redPercentage}%`,
+      `   🟡 Amarillo: ${detection.yellowPercentage}%`,
+      '',
+      `🚩 Bandera Seleccionada: ${alertStatus.level.toUpperCase()}`,
+      `📋 Estado: ${alertStatus.label_es || alertStatus.label}`,
+      // Descripción eliminada: propiedad no disponible
+      '',
+      '══════════════════════════════════════════════════════════════',
+    ];
 
-        return lines.join('\n');
-    }
+    return lines.join('\n');
+  }
 }
-

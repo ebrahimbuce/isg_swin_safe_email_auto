@@ -23,6 +23,11 @@ export class ForecastService {
   private cropTop: number = 80; // Píxeles a recortar de la parte superior
   private cropBottom: number = 50; // Píxeles a recortar de la parte inferior
 
+  // === Propiedades de Caché ===
+  private cachedStatus: AlertStatus | null = null;
+  private lastStatusCheck: number = 0;
+  private readonly CACHE_TTL = 15 * 60 * 1000; // 15 minutos de caché (coincide con actualizaciones de NOAA)
+
   constructor(private logger: Logger, private imageProcessor: ImageProcessorService) {
     // Ruta relativa desde dist/services hasta public/images
     this.outputPath = path.join(__dirname, '../../public/images/forecast.jpg');
@@ -31,27 +36,52 @@ export class ForecastService {
 
   /**
    * Obtiene solo el estado actual de la bandera sin generar archivos ni actualizar HTML
+   * OPTIMIZADO: Retorna respuesta de caché si es válida para soportar alto tráfico
    */
   async checkCurrentStatus(): Promise<AlertStatus> {
+    const now = Date.now();
+
+    // 1. Verificar si el caché es válido
+    // Si tenemos un estado guardado y ha pasado menos tiempo que el TTL, lo retornamos directo.
+    if (this.cachedStatus && now - this.lastStatusCheck < this.CACHE_TTL) {
+      this.logger.debug('⚡ Retornando estado desde caché (sin procesar imagen)');
+      return this.cachedStatus;
+    }
+
     let image: Buffer | null = null;
     let processedImage: Buffer | null = null;
 
     try {
+      this.logger.info('🔄 Cache expirado o vacío. Obteniendo nuevo estado desde NOAA...');
+
       // 1. Obtener la imagen
       image = await this.getImage();
 
       // 2. Procesar (recortar)
       processedImage = await this.processImage(image);
-      image = null;
+      image = null; // Liberar memoria
 
       // 3. Detectar colores
       const colorDetection = await this.detectColorsMinimal(processedImage);
-      processedImage = null;
+      processedImage = null; // Liberar memoria
 
       // 4. Determinar nivel de alerta
-      return this.htmlGenerator.determineAlertLevel(colorDetection);
+      const status = this.htmlGenerator.determineAlertLevel(colorDetection);
+
+      // 5. Actualizar Caché
+      this.cachedStatus = status;
+      this.lastStatusCheck = now;
+      this.logger.info(`✅ Cache actualizado. Nuevo estado: ${status.level}`);
+
+      return status;
     } catch (error) {
-      this.logger.error('Error al verificar estado:', error);
+      this.logger.error('❌ Error al verificar estado:', error);
+
+      // FALLBACK: Si falla la red pero tenemos un caché viejo, mejor devolver lo viejo que romper
+      if (this.cachedStatus) {
+        this.logger.warn('⚠️ Retornando caché expirado debido a error en actualización');
+        return this.cachedStatus;
+      }
       throw error;
     }
   }

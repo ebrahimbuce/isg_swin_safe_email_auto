@@ -78,7 +78,7 @@ async function testFlowNoEmail() {
         console.log();
         console.log(`   🚩 Bandera seleccionada: ${alertStatus.level.toUpperCase()}`);
         console.log(`   📋 Estado: ${alertStatus.label}`);
-        console.log(`   📝 Descripción: ${alertStatus.description}\n`);
+        // Descripción eliminada: propiedad no disponible
 
         // ═══════════════════════════════════════════════════════════════════
         // PASO 4: Verificar archivos generados

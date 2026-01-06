@@ -4,8 +4,8 @@ module.exports = {
       name: 'swim-safe-pr',
       script: 'dist/main.js',
       cwd: '/home/ubuntu/isg_swin_safe_email_auto',
-      instances: 1,
-      exec_mode: 'fork',
+      instances: 'max', // Usa todos los núcleos del CPU
+      exec_mode: 'cluster', // Habilita balanceo de carga
       autorestart: true,
       watch: false,
       max_memory_restart: '550M', // Reiniciar si excede 500MB

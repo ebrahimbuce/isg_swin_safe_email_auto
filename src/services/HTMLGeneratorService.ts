@@ -36,9 +36,10 @@ export class HTMLGeneratorService {
     if (detection.redPercentage > minThreshold) {
       this.logger.warn(`🔴 ALERTA ROJA: Detectado ${detection.redPercentage}% de rojo`);
       return {
-        level: 'red',
+        level: 'high',
         label: 'STRONG CURRENTS',
-        description: 'Corrientes fuertes detectadas - Peligro alto',
+        label_en: 'Strong Currents',
+        label_es: 'Corrientes Fuertes',
       };
     }
 
@@ -46,18 +47,20 @@ export class HTMLGeneratorService {
     if (detection.yellowPercentage > minThreshold) {
       this.logger.warn(`🟡 PRECAUCIÓN: Detectado ${detection.yellowPercentage}% de amarillo`);
       return {
-        level: 'yellow',
+        level: 'moderate',
         label: 'MODERATE CURRENTS',
-        description: 'Corrientes moderadas detectadas - Precaución',
+        label_en: 'Moderate Currents',
+        label_es: 'Corrientes Moderadas',
       };
     }
 
     // Sin colores de advertencia → Bandera BLANCA
     this.logger.info('✅ CONDICIONES CALMAS: No se detectaron colores de advertencia');
     return {
-      level: 'white',
+      level: 'low',
       label: 'CALM CONDITIONS',
-      description: 'Condiciones calmadas - Seguro para nadar',
+      label_en: 'Calm Conditions',
+      label_es: 'Condiciones Calmas',
     };
   }
 
