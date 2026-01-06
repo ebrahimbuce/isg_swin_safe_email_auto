@@ -19,7 +19,7 @@ export class HTMLGeneratorService {
   private outputPath: string;
 
   constructor(private logger: Logger) {
-    this.templatePath = path.join(__dirname, '../../public/index.html');
+    this.templatePath = path.join(__dirname, '../../public/template.html');
     this.outputPath = path.join(__dirname, '../../public/index.html');
   }
 
