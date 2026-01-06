@@ -29,8 +29,8 @@ export class HTMLGeneratorService {
    * Cualquier presencia mínima de color activa la alerta
    */
   determineAlertLevel(detection: ColorDetectionResult): AlertStatus {
-    // Umbral mínimo: cualquier presencia > 0.01% activa la alerta
-    const minThreshold = 0.01;
+    // Umbral mínimo: se aumenta a 0.5% para evitar falsos positivos por ruido en la imagen
+    const minThreshold = 0.5;
 
     // Prioridad 1: Si hay CUALQUIER presencia de rojo → Bandera ROJA
     if (detection.redPercentage > minThreshold) {
