@@ -123,7 +123,17 @@ export class HTMLGeneratorService {
    * Muestra la bandera de alerta correspondiente
    */
   private showFlag(html: string, level: AlertLevel): string {
-    const statusId = `status-${level}`;
+    // Mapear los niveles internos a los IDs del HTML
+    const levelMap: Record<string, string> = {
+      high: 'red',
+      moderate: 'yellow',
+      low: 'white',
+      red: 'red',
+      yellow: 'yellow',
+      white: 'white',
+    };
+    const htmlLevel = levelMap[level] ?? 'white';
+    const statusId = `status-${htmlLevel}`;
     return html.replace(
       new RegExp(`(<div class="flag-status-item status-overlay) hidden(" id="${statusId}">)`),
       '$1$2'

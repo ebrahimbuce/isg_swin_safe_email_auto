@@ -76,7 +76,14 @@ export class HTMLEmailGeneratorService {
    * Prepara el template data a partir del resultado del forecast
    */
   prepareForecastTemplateData(forecastResult: ForecastResult): EmailTemplateData {
-    const alertLevel = forecastResult.alertStatus.level as AlertLevel;
+    // Mapear los niveles de alerta externos a los internos
+    const levelMap: Record<string, AlertLevel> = {
+      high: 'red',
+      moderate: 'yellow',
+      low: 'white',
+    };
+    const rawLevel = forecastResult.alertStatus.level;
+    const alertLevel = levelMap[rawLevel] ?? 'white';
     const alert = this.alertMessages[alertLevel];
     const today = new Date().toLocaleDateString('es-PR', {
       weekday: 'long',
