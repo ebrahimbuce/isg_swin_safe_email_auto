@@ -5,6 +5,7 @@ import { ForecastService } from '../services/ForecastService.js';
 import { EmailService } from '../services/EmailService.js';
 import { HTMLEmailGeneratorService } from '../services/HTMLEmailGeneratorService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
+import { ConfigFactory } from '../config/ConfigFactory.js';
 
 async function testFullFlow() {
   const logger = new Logger('info');
@@ -13,19 +14,28 @@ async function testFullFlow() {
   console.log('║          🌊 TEST DE FLUJO COMPLETO - SWIM SAFE PR             ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
+  // Cargar configuración usando ConfigFactory
+  const config = ConfigFactory.fromEnv();
+
   // Verificar configuración de email - SOLO PREVIEW
-  const emailUser = process.env.EMAIL_USER || process.env.GMAIL_USER;
-  const emailPass = process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  const emailUser = config.email.user;
+  const emailPass = process.env.EMAIL_PASSWORD; // Usar variable directa para verificación
   const previewEmail = process.env.PREVIEW_EMAILS;
 
-  console.log('📧 Configuración de Email (MODO PREVIEW):');
+  console.log('📧 Configuración de Email:');
+  console.log(`   Host: ${config.email.host}`);
+  console.log(`   Port: ${config.email.port}`);
+  console.log(`   Secure: ${config.email.secure}`);
+  console.log(`   Service: ${config.email.service || 'N/A'}`);
   console.log(`   Usuario: ${emailUser || '❌ NO CONFIGURADO'}`);
   console.log(`   Password: ${emailPass ? '✅ Configurado' : '❌ NO CONFIGURADO'}`);
   console.log(`   Email de Preview: ${previewEmail || '❌ NO CONFIGURADO'}\n`);
   console.log('   ⚠️  Nota: Este test solo envía a PREVIEW_EMAILS, no a EMAIL_RECIPIENTS\n');
 
   if (!emailUser || !emailPass) {
-    console.error('❌ Configura EMAIL_USER/PASSWORD o GMAIL_USER/APP_PASSWORD en .env');
+    console.log('❌ Error: Faltan credenciales de email.');
+    console.log('   Asegúrate de configurar EMAIL_USER y EMAIL_PASSWORD en .env');
+    console.log('   (O verifica que ConfigFactory esté leyendo correctamente el .env)');
     process.exit(1);
   }
 
@@ -47,7 +57,10 @@ async function testFullFlow() {
     const imageProcessor = new ImageProcessorService(logger);
     const forecastService = new ForecastService(logger, imageProcessor);
     const htmlEmailGenerator = new HTMLEmailGeneratorService(logger);
-    const emailService = new EmailService(logger, forecastService, htmlEmailGenerator, imageProcessor);
+
+    // Inicializar EmailService con la configuración cargada
+    const emailService = new EmailService(logger, forecastService, htmlEmailGenerator, imageProcessor, config.email);
+
     const scheduler = new SchedulerService(logger);
 
     console.log('   ✅ ImageProcessorService');
