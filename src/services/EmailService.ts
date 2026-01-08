@@ -55,14 +55,22 @@ export class EmailService extends InitializableService {
     config?: Partial<EmailConfig>
   ) {
     super(logger);
-    // Configuración para Gmail usando variables de entorno
+    // Configuración de email
     this.config = {
-      service: 'gmail',
+      service: config?.service,
+      host: config?.host,
+      port: config?.port,
+      secure: config?.secure,
       auth: {
-        user: config?.auth?.user || process.env.GMAIL_USER || '',
-        pass: config?.auth?.pass || process.env.GMAIL_APP_PASSWORD || '',
+        user: config?.auth?.user || process.env.EMAIL_USER || process.env.GMAIL_USER || '',
+        pass: config?.auth?.pass || process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD || '',
       },
     };
+
+    // Si no se especifica servicio ni host, intentar usar Gmail por defecto si hay variables de entorno
+    if (!this.config.service && !this.config.host) {
+      this.config.service = 'gmail';
+    }
   }
 
   protected getServiceName(): string {
@@ -73,19 +81,35 @@ export class EmailService extends InitializableService {
    * Implementación de la lógica de inicialización
    */
   protected async doInitialize(): Promise<InitializationResult> {
-    // Configuración optimizada para Gmail con connection pooling
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: this.config.auth.user,
-        pass: this.config.auth.pass,
-      },
+    const transportDefaults = {
       pool: true, // Habilitar connection pooling
       maxConnections: 5, // Máximo de conexiones simultáneas
       maxMessages: 100, // Máximo de mensajes por conexión
       rateDelta: 1000, // Intervalo para rate limiting (1 segundo)
       rateLimit: 5, // Máximo de emails por rateDelta
-    });
+    };
+
+    let transportConfig: any = {
+      ...transportDefaults,
+      auth: {
+        user: this.config.auth.user,
+        pass: this.config.auth.pass,
+      },
+    };
+
+    if (this.config.service) {
+      transportConfig.service = this.config.service;
+    } else if (this.config.host) {
+      transportConfig.host = this.config.host;
+      if (this.config.port) transportConfig.port = this.config.port;
+      if (this.config.secure !== undefined) transportConfig.secure = this.config.secure;
+    } else {
+      // Fallback a gmail
+      transportConfig.service = 'gmail';
+    }
+
+    // Configuración optimizada con connection pooling
+    this.transporter = nodemailer.createTransport(transportConfig);
 
     // Verificar conexión
     await this.transporter.verify();
@@ -94,6 +118,7 @@ export class EmailService extends InitializableService {
       success: true,
       message: 'Connection pooling habilitado',
       details: {
+        Config: this.config.service ? `Service: ${this.config.service}` : `Host: ${this.config.host}`,
         Usuario: this.config.auth.user,
       },
     };

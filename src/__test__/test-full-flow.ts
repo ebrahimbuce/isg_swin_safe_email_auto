@@ -14,8 +14,8 @@ async function testFullFlow() {
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
   // Verificar configuración de email - SOLO PREVIEW
-  const emailUser = process.env.GMAIL_USER;
-  const emailPass = process.env.GMAIL_APP_PASSWORD;
+  const emailUser = process.env.EMAIL_USER || process.env.GMAIL_USER;
+  const emailPass = process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD;
   const previewEmail = process.env.PREVIEW_EMAILS;
 
   console.log('📧 Configuración de Email (MODO PREVIEW):');
@@ -25,7 +25,7 @@ async function testFullFlow() {
   console.log('   ⚠️  Nota: Este test solo envía a PREVIEW_EMAILS, no a EMAIL_RECIPIENTS\n');
 
   if (!emailUser || !emailPass) {
-    console.error('❌ Configura GMAIL_USER y GMAIL_APP_PASSWORD en .env');
+    console.error('❌ Configura EMAIL_USER/PASSWORD o GMAIL_USER/APP_PASSWORD en .env');
     process.exit(1);
   }
 

@@ -34,7 +34,17 @@ export class Application {
       this.logger,
       this.forecastService,
       this.htmlEmailGenerator,
-      this.imageProcessor
+      this.imageProcessor,
+      {
+        service: config.email.service,
+        host: config.email.host,
+        port: config.email.port,
+        secure: config.email.secure,
+        auth: {
+          user: config.email.user,
+          pass: config.email.appPassword,
+        },
+      }
     );
 
     // Inicializar MailChimp solo si está configurado

@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { chromium, Browser, Page, BrowserContext } from 'playwright';
+import { Browser, Page, BrowserContext } from 'playwright';
 import sharp from 'sharp';
 import { PlaywrightConfig } from './PlaywrightConfig.js';
 import type { AlertLevel, AlertStatus, UpdateHTMLParams, ExportToImageParams } from './dto/HTMLGeneratorDTO.js';
