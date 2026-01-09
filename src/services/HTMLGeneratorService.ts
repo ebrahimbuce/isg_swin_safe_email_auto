@@ -229,14 +229,20 @@ export class HTMLGeneratorService {
       throw new Error(`No se pudo iniciar Chromium: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
 
-    // Crear contexto con viewport configurado
-    const context = await PlaywrightConfig.createContext(browser, {
-      width: captureWidth,
-      height: captureHeight,
-      deviceScaleFactor: 2, // Balance entre calidad y uso de memoria
-    });
+    try {
+      // Crear contexto con viewport configurado
+      const context = await PlaywrightConfig.createContext(browser, {
+        width: captureWidth,
+        height: captureHeight,
+        deviceScaleFactor: 2, // Balance entre calidad y uso de memoria
+      });
 
-    return { browser, context };
+      return { browser, context };
+    } catch (error) {
+      // Si falla la creación del contexto, asegúrate de cerrar el navegador
+      await browser.close().catch(() => {});
+      throw error;
+    }
   }
 
   /**
@@ -244,25 +250,27 @@ export class HTMLGeneratorService {
    */
   private async captureScreenshot(context: BrowserContext, tempPath: string): Promise<void> {
     const htmlPath = `file://${this.outputPath}`;
-    let page: Page | null = await context.newPage();
+    const page = await context.newPage();
 
     if (!page) {
       throw new Error('No se pudo crear la página en Chromium');
     }
 
-    await page.goto(htmlPath, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
+    try {
+      await page.goto(htmlPath, {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
 
-    await page.waitForSelector('.map-workflow', { timeout: 10000 });
-    // Esperar un poco más para que la imagen de fondo del mapa se cargue completamente
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      await page.waitForSelector('.map-workflow', { timeout: 10000 });
+      // Esperar un poco más para que la imagen de fondo del mapa se cargue completamente
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Capturar el elemento principal
-    await this.captureElement(page, tempPath);
-
-    await page.close();
+      // Capturar el elemento principal
+      await this.captureElement(page, tempPath);
+    } finally {
+      await page.close().catch(() => {});
+    }
   }
 
   /**
