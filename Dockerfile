@@ -15,7 +15,7 @@ COPY package.json pnpm-lock.yaml ./
 # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 evita descargar los navegadores de nuevo
 # ya que la imagen base ya los tiene instalados.
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copiar el resto del código fuente
 COPY . .
