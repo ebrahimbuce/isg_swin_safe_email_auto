@@ -1,6 +1,6 @@
 # Usar la imagen oficial de Playwright que incluye Node.js y los navegadores necesarios
 # Usamos una versión específica que coincide con package.json para evitar problemas
-FROM mcr.microsoft.com/playwright:v1.48.1-jammy
+FROM mcr.microsoft.com/playwright:v1.57.0-jammy
 
 # Directorio de trabajo
 WORKDIR /app
