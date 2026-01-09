@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: swim-safe-pr:latest
+    container_name: swim-safe-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Las variables sensibles se inyectan desde Coolify/Secrets
+    volumes:
+      # Persistencia para las imágenes generadas y logs
+      - swim_safe_data:/app/public/final
+      - swim_safe_logs:/app/logs
+
+volumes:
+  swim_safe_data:
+  swim_safe_logs:
