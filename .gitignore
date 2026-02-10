@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Screenshots and temporary files
+screenshots/
+temp/
+*.tmp
+
+
+# Puppeteer cache
+.cache/
+
+# Generated images (large files - regenerated on each run)
+public/final/output*
+public/final/temp_capture.png
+public/images/forecast.jpg
+public/images/test-*.jpg
+public/images/test-*.png
+
+# PM2 logs (if generated)
+pm2.log
+*.pid
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs.db
+Desktop.ini
+
+# Generated HTML
+public/index.html
+

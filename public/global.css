@@ -1,0 +1,334 @@
+:root {
+    --gradient-primary: linear-gradient(to top, #05998c, #3cb6c6);
+    --background-color: #f5f5f5;
+    --hr-color: #e0e0e0;
+    --secondary-color: #A4D3C9;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: var(--background-color);
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Clear tags styles */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+a,
+button,
+input,
+textarea,
+select,
+option,
+label,
+form,
+table,
+tbody,
+thead,
+tfoot,
+tr,
+td,
+th {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+
+}
+
+
+.bg-gradient-primary {
+    width: 100%;
+    height: 100vh;
+    background: var(--gradient-primary);
+    display: flex;
+    flex-direction: column;
+}
+
+.background-container {
+    background-image: url('images/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    height: 300px;
+    flex-shrink: 0;  /* No se encoge */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.background-container h1 {
+    color: white;
+    font-size: 3rem;
+    font-weight: bold;
+    font-style: italic;
+}
+
+.flags-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    position: relative;
+    width: 100%;
+    padding: 20px 0;
+}
+
+.flags-container::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 100px;
+    background-color: var(--secondary-color);
+    /* Color similar al footer pero con transparencia */
+    transform: translateY(-50%);
+    z-index: 0;
+}
+
+.flag-item {
+    position: relative;
+    z-index: 1;
+}
+
+.flag-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 5px solid #A4D3C9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #3cb6c6;
+    overflow: hidden;
+}
+
+.flag-circle img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    display: block;
+}
+
+/* Ajustes específicos para uniformidad visual */
+
+/* Roja normal: Ajuste de tamaño para igualar a las otras */
+.flag-item:nth-child(2) .flag-circle img {
+    width: 100%;
+    height: 100%;
+    transform: scale(1.4) translateY(-2px) translateX(5px);
+    z-index: 1;
+}
+
+/* Amarilla: Aumento para compensar imagen pequeña */
+.flag-item:nth-child(3) .flag-circle img {
+    width: 120%;
+    height: 120%;
+    transform: scale(1.2);
+}
+
+/* Verde: Aumento para compensar imagen pequeña */
+.flag-item:nth-child(5) .flag-circle img {
+    width: 120%;
+    height: 120%;
+    transform: scale(1.2);
+}
+
+.map-wrapper {
+    position: relative;
+    width: fit-content;
+}
+
+.status-overlay {
+    position: absolute;
+    right: -40px;
+    top: 50%;
+    transform: translateY(-60%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 150px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.status-overlay .flag-circle {
+    width: 120px;
+    height: 120px;
+    background-color: #3cb6c6;
+}
+
+.status-overlay .flag-status-label {
+    font-size: 2rem;
+    width: 400px;
+    margin-top: 15px;
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    font-weight: bold;
+    text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.8);
+    transform: translateY(-25px);
+    text-transform: uppercase;
+    line-height: 1.1;
+    color: white;
+}
+
+/* Ajustes de tamaño para las banderas del overlay (igual que arriba) */
+.status-overlay[id="status-red"] .flag-circle img {
+    width: 100%;
+    height: 100%;
+    transform: scale(1.4) translateY(-2px) translateX(5px);
+}
+
+.status-overlay[id="status-yellow"] .flag-circle img,
+.status-overlay[id="status-green"] .flag-circle img {
+    width: 120%;
+    height: 120%;
+    transform: scale(1.2);
+}
+
+.status-overlay[id="status-white"] .flag-circle img {
+    width: 80%;
+    height: 100%;
+}
+
+.date-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.date-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    gap: 20px;
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+}
+
+.date-banner::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 20px;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+
+.date-line {
+    flex: 1;
+    height: 3px;
+    background-color: var(--hr-color);
+}
+
+
+.date-text {
+    color: white;
+    font-size: 2.3rem;
+    font-weight: 600;
+    font-family: Arial, sans-serif;
+    white-space: nowrap;
+}
+
+.map-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.flag-background {
+    width: 100%;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    height: 60px;
+    background-color: var(--footer-color);
+}
+
+.map-workflow {
+    width: 600px;
+    height: 360px;
+    border: 6px solid white;
+    background-image: url('images/forecast.jpg');
+    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+
+.recommendations-container-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.recommendations-container {
+    max-width: 650px;
+}
+
+.recommendations-container p {
+    font-size: 1.2rem;
+    font-weight: 400;
+    font-family: Arial, sans-serif;
+    font-style: italic;
+    line-height: 1.5;
+    color: white;
+}
+
+.recommendations-list {
+    max-width: 650px;
+    display: flex;
+    flex-direction: row;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+.recommendations-list-item ul li {
+    list-style: disc;
+    line-height: 1.5;
+    color: white;
+    min-width: 300px;
+    font-size: 1.2rem;
+    font-weight: 400;
+    font-family: Arial, sans-serif;
+    font-style: italic;
+}
+
+
+footer {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto;
+    width: 100%;
+}
+
+.div-footer-bar {
+    width: 100%;
+    height: 30px;
+    background-color: var(--secondary-color);
+    margin-top: 20px;
+}

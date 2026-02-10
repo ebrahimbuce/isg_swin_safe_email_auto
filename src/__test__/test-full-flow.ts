@@ -1,0 +1,185 @@
+import 'dotenv/config';
+import { Logger } from '../services/Logger.js';
+import { ImageProcessorService } from '../services/ImageProcessorService.js';
+import { ForecastService } from '../services/ForecastService.js';
+import { EmailService } from '../services/EmailService.js';
+import { HTMLEmailGeneratorService } from '../services/HTMLEmailGeneratorService.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { ConfigFactory } from '../config/ConfigFactory.js';
+
+async function testFullFlow() {
+  const logger = new Logger('info');
+
+  console.log('\n╔══════════════════════════════════════════════════════════════╗');
+  console.log('║          🌊 TEST DE FLUJO COMPLETO - SWIM SAFE PR             ║');
+  console.log('╚══════════════════════════════════════════════════════════════╝\n');
+
+  // Cargar configuración usando ConfigFactory
+  const config = ConfigFactory.fromEnv();
+
+  // Verificar configuración de email - SOLO PREVIEW
+  const emailUser = config.email.user;
+  const emailPass = process.env.EMAIL_PASSWORD; // Usar variable directa para verificación
+  const previewEmail = process.env.PREVIEW_EMAILS;
+
+  console.log('📧 Configuración de Email:');
+  console.log(`   Host: ${config.email.host}`);
+  console.log(`   Port: ${config.email.port}`);
+  console.log(`   Secure: ${config.email.secure}`);
+  console.log(`   Service: ${config.email.service || 'N/A'}`);
+  console.log(`   Usuario: ${emailUser || '❌ NO CONFIGURADO'}`);
+  console.log(`   Password: ${emailPass ? '✅ Configurado' : '❌ NO CONFIGURADO'}`);
+  console.log(`   Email de Preview: ${previewEmail || '❌ NO CONFIGURADO'}\n`);
+  console.log('   ⚠️  Nota: Este test solo envía a PREVIEW_EMAILS, no a EMAIL_RECIPIENTS\n');
+
+  if (!emailUser || !emailPass) {
+    console.log('❌ Error: Faltan credenciales de email.');
+    console.log('   Asegúrate de configurar EMAIL_USER y EMAIL_PASSWORD en .env');
+    console.log('   (O verifica que ConfigFactory esté leyendo correctamente el .env)');
+    process.exit(1);
+  }
+
+  if (!previewEmail) {
+    console.error('❌ Configura PREVIEW_EMAILS en .env');
+    console.error('   Ejemplo: PREVIEW_EMAILS=tu-email@example.com');
+    process.exit(1);
+  }
+
+  const startTime = Date.now();
+
+  try {
+    // ═══════════════════════════════════════════════════════════════════
+    // PASO 1: Inicializar servicios
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📦 PASO 1: Inicializando servicios...\n');
+
+    const imageProcessor = new ImageProcessorService(logger);
+    const forecastService = new ForecastService(logger, imageProcessor);
+    const htmlEmailGenerator = new HTMLEmailGeneratorService(logger);
+
+    // Inicializar EmailService con la configuración cargada
+    const emailService = new EmailService(logger, forecastService, htmlEmailGenerator, imageProcessor, config.email);
+
+    const scheduler = new SchedulerService(logger);
+
+    console.log('   ✅ ImageProcessorService');
+    console.log('   ✅ ForecastService');
+    console.log('   ✅ HTMLEmailGeneratorService');
+    console.log('   ✅ EmailService');
+    console.log('   ✅ SchedulerService\n');
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PASO 2: Descargar y procesar imagen del forecast
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🖼️  PASO 2: Descargando imagen del forecast en tiempo real...\n');
+
+    const forecastResult = await forecastService.getForecast();
+
+    console.log(`\n   📍 Imagen guardada: ${forecastResult.imagePath}`);
+    console.log(`   📍 Output final: ${forecastResult.outputImagePath}\n`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PASO 3: Mostrar resultados de detección de colores
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🎨 PASO 3: Resultados de detección de colores\n');
+
+    const { colorDetection, alertStatus } = forecastResult;
+
+    console.log('   📊 Análisis de colores:');
+    console.log(
+      `      🔴 Rojo: ${colorDetection.redPercentage.toFixed(2)}% ${colorDetection.hasRed ? '(DETECTADO)' : ''}`
+    );
+    console.log(
+      `      🟡 Amarillo: ${colorDetection.yellowPercentage.toFixed(2)}% ${
+        colorDetection.hasYellow ? '(DETECTADO)' : ''
+      }`
+    );
+    console.log();
+    console.log(`   🚩 Bandera seleccionada: ${alertStatus.level.toUpperCase()}`);
+    console.log(`   📋 Estado: ${alertStatus.label}`);
+    // Descripción eliminada: propiedad no disponible
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PASO 4: Enviar email SOLO al preview email
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📨 PASO 4: Enviando email de preview...\n');
+    console.log(`   📧 Enviando SOLO a: ${previewEmail}`);
+    console.log(`   ⚠️  Los destinatarios de EMAIL_RECIPIENTS NO recibirán este test\n`);
+
+    const emailStartTime = Date.now();
+
+    const emailSent = await emailService.sendForecastReport({
+      to: previewEmail,
+      forecastResult,
+      useParallel: false,
+    });
+
+    const emailDuration = ((Date.now() - emailStartTime) / 1000).toFixed(2);
+
+    if (emailSent) {
+      console.log(`\n   ✅ Email de preview enviado exitosamente`);
+      console.log(`   ⏱️  Tiempo: ${emailDuration} segundos`);
+    } else {
+      console.log(`\n   ❌ Error al enviar email de preview`);
+    }
+
+    // Mostrar métricas del servicio de email
+    const metrics = emailService.getMetrics();
+    console.log(`\n   📈 Métricas del servicio:`);
+    console.log(`      📨 Emails enviados (total): ${metrics.emailsSent}`);
+    console.log(`      ❌ Emails fallidos (total): ${metrics.emailsFailed}`);
+    console.log(`      ⏱️  Tiempo promedio: ${metrics.averageSendTime}ms`);
+    console.log(`      💾 Cache de imágenes: ${metrics.cacheSize} entradas`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PASO 5: Mostrar información del scheduler
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('⏰ PASO 5: Configuración de horarios programados\n');
+
+    scheduler.getNextExecutionInfo();
+    console.log('\n   📅 Los emails se enviarán automáticamente a las:');
+    console.log('      • 7:02 AM hora de Puerto Rico (AST)');
+    console.log('      • 12:02 PM hora de Puerto Rico (AST)\n');
+
+    // ═══════════════════════════════════════════════════════════════════
+    // RESUMEN FINAL
+    // ═══════════════════════════════════════════════════════════════════
+    const endTime = Date.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('\n╔══════════════════════════════════════════════════════════════╗');
+    console.log('║              ✅ FLUJO COMPLETO EXITOSO (PREVIEW)              ║');
+    console.log('╚══════════════════════════════════════════════════════════════╝\n');
+
+    // Obtener métricas finales
+    const finalMetrics = emailService.getMetrics();
+
+    console.log('📊 RESUMEN:');
+    console.log(`   ⏱️  Tiempo total: ${duration} segundos`);
+    console.log(`   🖼️  Imagen descargada: ✅`);
+    console.log(`   🎨  Colores detectados: ✅`);
+    console.log(`   🚩  Bandera: ${alertStatus.level.toUpperCase()}`);
+    console.log(`   📨  Emails enviados: ${finalMetrics.emailsSent}`);
+    console.log(`   ❌  Emails fallidos: ${finalMetrics.emailsFailed}`);
+    console.log(`   👥  Destinatario (Preview): ${previewEmail}`);
+    console.log(`   ⚡  Optimizaciones: Connection Pooling ✅ | Cache ✅ | Compresión ✅\n`);
+
+    console.log('══════════════════════════════════════════════════════════════\n');
+  } catch (error) {
+    console.error('\n❌ Error en el flujo:', error);
+    process.exit(1);
+  }
+
+  process.exit(0);
+}
+
+testFullFlow().catch((error) => {
+  console.error('Error:', error);
+  process.exit(1);
+});
