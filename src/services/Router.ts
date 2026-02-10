@@ -27,6 +27,8 @@ interface Route {
 export class Router {
   private routes: Route[] = [];
   private readonly outputImagePath: string;
+  /** Evita varias generaciones simultáneas cuando la imagen no existe */
+  private generatingForecast: Promise<void> | null = null;
 
   constructor(
     private config: IConfig,
@@ -121,7 +123,7 @@ export class Router {
 
   /**
    * Sirve la imagen actual del reporte en JPG (siempre lee del disco = siempre actualizada).
-   * Eficiente: stream PNG → Sharp (JPG) → response, sin cargar la imagen entera en memoria.
+   * Si la imagen no existe, genera el forecast una vez y luego sirve (generación bajo demanda).
    */
   private async handleForecastImage(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const pathToFile = this.outputImagePath;
@@ -129,17 +131,39 @@ export class Router {
     try {
       await fs.access(pathToFile);
     } catch {
-      res.setHeader('Content-Type', 'application/json');
-      res.writeHead(404);
-      res.end(JSON.stringify({ error: 'Forecast image not available yet. Run a forecast first.' }));
-      return;
+      // Generar bajo demanda: solo una generación a la vez
+      if (!this.generatingForecast) {
+        this.generatingForecast = this.forecastService
+          .getForecast()
+          .then(() => {
+            this.logger.info('Forecast generado bajo demanda para /forecast/image');
+          })
+          .finally(() => {
+            this.generatingForecast = null;
+          });
+      }
+      try {
+        await this.generatingForecast;
+        await fs.access(pathToFile);
+      } catch (err) {
+        this.logger.error('Error generando forecast bajo demanda:', err);
+        res.setHeader('Content-Type', 'application/json');
+        res.writeHead(503);
+        res.end(
+          JSON.stringify({
+            error: 'No se pudo generar la imagen del forecast.',
+            hint: 'Comprueba que Chromium esté instalado (npx playwright install chromium) y que la app tenga acceso a internet.',
+          })
+        );
+        return;
+      }
     }
 
     const filename = `swim-safe-forecast-${new Date().toISOString().slice(0, 10)}.jpg`;
 
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache'); // Siempre imagen actualizada
+    res.setHeader('Cache-Control', 'no-cache');
     res.writeHead(200);
 
     sharp(pathToFile)
